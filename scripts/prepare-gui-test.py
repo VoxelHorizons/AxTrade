@@ -31,6 +31,14 @@ for dependency in list(deps):
     if key not in keep:
         deps.remove(dependency)
 
+# Upstream uses Paper's bundled Adventure API without declaring it. This
+# test build compiles against a provided API; the server supplies it at runtime.
+adventure = ET.SubElement(deps, ns + "dependency")
+ET.SubElement(adventure, ns + "groupId").text = "net.kyori"
+ET.SubElement(adventure, ns + "artifactId").text = "adventure-api"
+ET.SubElement(adventure, ns + "version").text = "4.17.0"
+ET.SubElement(adventure, ns + "scope").text = "provided"
+
 # Intentionally mark these as **GUI testing only**, not production builds.
 version = tree.getroot().find(ns + "version")
 assert version is not None
