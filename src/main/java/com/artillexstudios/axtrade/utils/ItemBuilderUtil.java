@@ -1,7 +1,6 @@
 package com.artillexstudios.axtrade.utils;
 
 import com.artillexstudios.axapi.libs.boostedyaml.block.implementation.Section;
-import com.artillexstudios.axapi.reflection.ClassUtils;
 import com.artillexstudios.axapi.utils.ItemBuilder;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -20,30 +19,11 @@ public class ItemBuilderUtil {
 
     @NotNull
     public static ItemBuilder newBuilder(@NotNull Section section, Map<String, String> replacements, @Nullable Player player) {
-        final ItemBuilder builder = ItemBuilder.create(section);
-
-        section.getOptionalString("name").ifPresent((name) -> {
-            if (ClassUtils.INSTANCE.classExists("me.clip.placeholderapi.PlaceholderAPI")) {
-                name = me.clip.placeholderapi.PlaceholderAPI.setPlaceholders(player, name);
-            }
-            builder.setName(name, replacements);
-        });
-
-        section.getOptionalStringList("lore").ifPresent((lore) -> {
-            if (ClassUtils.INSTANCE.classExists("me.clip.placeholderapi.PlaceholderAPI")) {
-                lore = me.clip.placeholderapi.PlaceholderAPI.setPlaceholders(player, lore);
-            }
-            builder.setLore(lore, replacements);
-        });
-
-        section.getOptionalString("texture").ifPresent((texture) -> {
-            for (Map.Entry<String, String> entry : replacements.entrySet()) {
-                texture = texture.replace(entry.getKey(), entry.getValue());
-            }
-            builder.setTextureValue(texture);
-        });
-
-        return builder;
+        // Resolve every GUI-visible item configuration field before AxAPI creates
+        // the ItemStack. Its built-in name/lore parsing happens while creating the
+        // builder, so post-processing only those two fields misses material,
+        // model, texture, tooltip and all nested config values.
+        return ItemBuilder.create(GuiPlaceholderResolver.resolveItemSection(player, section, replacements));
     }
 
     @NotNull
