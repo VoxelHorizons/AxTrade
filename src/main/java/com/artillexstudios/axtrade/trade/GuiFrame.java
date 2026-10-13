@@ -21,6 +21,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.artillexstudios.axtrade.AxTrade.LANG;
+
 public class GuiFrame {
     private static final ItemStack air = new ItemStack(Material.AIR);
     protected final Config file;
@@ -63,6 +65,15 @@ public class GuiFrame {
         // AxTrade's title has historically used %player% for the trade partner.
         // Preserve that alias consistently in item names, lore and models too.
         map.put("%player%", trade.getOtherPlayer(player).getPlayer().getName());
+
+        // These title tokens also work in item names and lore. Keep them tied
+        // to the viewer's side of the trade, not the console or GUI creator.
+        TradePlayer own = trade.getPlayer1().getPlayer().equals(player)
+                ? trade.getPlayer1() : trade.getPlayer2();
+        map.put("%own-status%", own.hasConfirmed()
+                ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting"));
+        map.put("%partner-status%", own.getOtherPlayer().hasConfirmed()
+                ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting"));
 
         return ItemBuilderUtil.newBuilder(file.getSection(key), map, player).get();
     }
