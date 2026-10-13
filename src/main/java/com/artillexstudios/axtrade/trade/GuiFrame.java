@@ -5,6 +5,7 @@ import com.artillexstudios.axapi.nms.wrapper.ServerPlayerWrapper;
 import com.artillexstudios.axapi.utils.NumberUtils;
 import com.artillexstudios.axapi.utils.PlayerTextures;
 import com.artillexstudios.axtrade.utils.ItemBuilderUtil;
+import com.artillexstudios.axtrade.utils.GuiPlaceholderResolver;
 import dev.triumphteam.gui.components.GuiAction;
 import dev.triumphteam.gui.guis.BaseGui;
 import dev.triumphteam.gui.guis.GuiItem;
@@ -45,8 +46,7 @@ public class GuiFrame {
     }
 
     protected ItemStack buildItem(@NotNull String key) {
-        if (file.getSection(key) == null) return air;
-        return ItemBuilderUtil.newBuilder(file.getSection(key), player).get();
+        return buildItem(key, Map.of());
     }
 
     protected ItemStack buildItem(@NotNull String key, Map<String, String> replacements) {
@@ -60,6 +60,9 @@ public class GuiFrame {
         map.put("%partner-head%", otherTextures.texture() == null ? "" : otherTextures.texture());
         map.put("%own-name%", player.getPlayer().getName());
         map.put("%partner-name%", trade.getOtherPlayer(player).getPlayer().getName());
+        // AxTrade's title has historically used %player% for the trade partner.
+        // Preserve that alias consistently in item names, lore and models too.
+        map.put("%player%", trade.getOtherPlayer(player).getPlayer().getName());
 
         return ItemBuilderUtil.newBuilder(file.getSection(key), map, player).get();
     }
@@ -99,10 +102,13 @@ public class GuiFrame {
 
         if (!file.getStringList(r).isEmpty()) {
             for (Object route : file.getStringList(r)) {
-                if (NumberUtils.isInt(("" + route))) {
-                    slots.add(Integer.parseInt(("" + route)));
+                // Slot lists are numeric or ranges, but may be strings generated
+                // by PlaceholderAPI. All slots use the viewing player's context.
+                String resolved = GuiPlaceholderResolver.resolve(player, String.valueOf(route));
+                if (NumberUtils.isInt(resolved)) {
+                    slots.add(Integer.parseInt(resolved));
                 } else {
-                    String[] split = ("" + route).split("-");
+                    String[] split = resolved.split("-");
                     int min = Integer.parseInt(split[0]);
                     int max = Integer.parseInt(split[1]);
                     for (int i = min; i <= max; i++) {
@@ -111,7 +117,12 @@ public class GuiFrame {
                 }
             }
         } else {
-            slots.add(file.getInt(r));
+            String slot = file.getString(r);
+            if (slot != null && slot.contains("%")) {
+                slots.add(Integer.parseInt(GuiPlaceholderResolver.resolve(player, slot)));
+            } else {
+                slots.add(file.getInt(r));
+            }
         }
 
         return slots;
