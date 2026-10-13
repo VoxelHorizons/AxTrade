@@ -10,6 +10,7 @@ import com.artillexstudios.axtrade.hooks.HookManager;
 import com.artillexstudios.axtrade.hooks.currency.CurrencyHook;
 import com.artillexstudios.axtrade.safety.SafetyManager;
 import com.artillexstudios.axtrade.utils.BlacklistUtils;
+import com.artillexstudios.axtrade.utils.GuiPlaceholderResolver;
 import com.artillexstudios.axtrade.utils.NumberUtils;
 import com.artillexstudios.axtrade.utils.ShulkerUtils;
 import com.artillexstudios.axtrade.utils.TaxUtils;
@@ -286,7 +287,8 @@ public class TradeGui extends GuiFrame {
         trade.prepTime = System.currentTimeMillis();
         event.getWhoClicked().closeInventory();
 
-        List<Component> lines = StringUtils.formatList(LANG.getStringList("currency-editor-sign"));
+        List<Component> lines = StringUtils.formatList(GuiPlaceholderResolver.resolveLines(
+                player.getPlayer(), LANG.getStringList("currency-editor-sign"), Map.of()));
         lines.set(0, Component.empty());
 
         SignInput sign = new SignInput.Builder().setLines(lines).setHandler((player1, result) -> {
@@ -337,7 +339,8 @@ public class TradeGui extends GuiFrame {
 
         BaseGui shulkerGui = Gui.storage()
                 .rows(3)
-                .title(StringUtils.format(Utils.getFormattedItemName(event.getCurrentItem())))
+                .title(StringUtils.format(GuiPlaceholderResolver.resolve(
+                        player.getPlayer(), Utils.getFormattedItemName(event.getCurrentItem()))))
                 .disableAllInteractions()
                 .create();
 
@@ -382,10 +385,14 @@ public class TradeGui extends GuiFrame {
     }
 
     public void updateTitle() {
-        String newTitle = GUIS.getString("title")
-                .replace("%player%", player.getOtherPlayer().getPlayer().getName())
-                .replace("%own-status%", player.hasConfirmed() ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting"))
-                .replace("%partner-status%", player.getOtherPlayer().hasConfirmed() ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting"));
+        String newTitle = GuiPlaceholderResolver.resolve(player.getPlayer(), GUIS.getString("title"),
+                Map.of(
+                        "%player%", player.getOtherPlayer().getPlayer().getName(),
+                        "%own-name%", player.getPlayer().getName(),
+                        "%partner-name%", player.getOtherPlayer().getPlayer().getName(),
+                        "%own-status%", player.hasConfirmed() ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting"),
+                        "%partner-status%", player.getOtherPlayer().hasConfirmed() ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting")
+                ));
 
         // don't update title if it didn't change
         if (currentTitle.equals(newTitle)) return;
