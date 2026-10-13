@@ -40,6 +40,26 @@ Run `/axtrade preview` to inspect your GUI with your own player as both trading 
 - VoxelCore is listed as a `softdepend` to encourage stable load order; it is not bundled or required.
 - No dependency changes to AxTrade's trading economy, cancellation, or inventory-transaction code.
 
+### Downloadable GUI-test distribution
+
+The `Build AxTrade GUI Test JAR` workflow now produces an installable,
+**test-only** shaded plugin JAR for the GUI/placeholder integration:
+
+- [Successful GitHub Actions run](https://github.com/VoxelHorizons/AxTrade/actions/runs/38408782108)
+- [Download the JAR artifact ZIP](https://github.com/VoxelHorizons/AxTrade/actions/runs/38408782108/artifacts/11820870763)
+
+Unzip the downloaded GitHub artifact and install the JAR under `plugins/` on a
+staging server, replacing the previous AxTrade JAR (do not load both at once).
+Test with `/axtrade preview`.
+
+The test-only packaging script `scripts/prepare-gui-test.py` prunes unsupported
+optional integrations **in the CI checkout only**, without modifying the fork's
+full source or Maven build. The test JAR keeps core trading, Vault, experience,
+and PlaceholderAPI-backed currencies, but excludes integrations whose proprietary
+`libs/*.jar` dependencies were not supplied, including AxShulkers and various
+optional currency providers. Obtain/provide the missing upstream APIs for a
+feature-complete production build.
+
 ### Build note
 
 The upstream `pom.xml` references several locally distributed plugins with `<scope>system</scope>` and paths in `libs/*.jar`. Those JARs were not included in the GitHub fork (the root `.gitignore` ignores JARs), so a full Maven build cannot be assumed to work in a clean GitHub runner without supplying these APIs or replacing the system dependencies with resolvable repositories. A separate dependency-free regression test validates the text replacement ordering.
