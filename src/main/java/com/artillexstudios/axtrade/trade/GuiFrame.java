@@ -80,13 +80,15 @@ public class GuiFrame {
     }
 
     protected void createItem(@NotNull String slotRoute, String itemRoute, @Nullable GuiAction<InventoryClickEvent> action, Map<String, String> replacements) {
-        createItem(slotRoute, itemRoute, action, replacements, 1);
+        // -1 uses the (potentially placeholder-resolved) configured item amount.
+        // Trade confirmation countdowns still pass an explicit number.
+        createItem(slotRoute, itemRoute, action, replacements, -1);
     }
 
     protected void createItem(@NotNull String slotRoute, String itemRoute, @Nullable GuiAction<InventoryClickEvent> action, Map<String, String> replacements, int amount) {
         if (file.getString(itemRoute + ".type") == null && file.getString(itemRoute + ".material") == null) return;
         final ItemStack it = buildItem(itemRoute, replacements);
-        it.setAmount(amount);
+        if (amount > 0) it.setAmount(amount);
         final GuiItem guiItem = new GuiItem(it, action);
         if (opened) {
             for (int slot : getSlots(slotRoute)) {
