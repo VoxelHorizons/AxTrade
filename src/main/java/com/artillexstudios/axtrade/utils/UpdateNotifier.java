@@ -99,18 +99,8 @@ public class UpdateNotifier implements Listener {
     }
 
     public boolean isOutdated(String current) {
-        if (latest == null) return false;
-        String[] parts1 = latest.split("\\.");
-        String[] parts2 = current.split("\\.");
-        for (int i = 0; i < 3; i++) {
-            int num1 = Integer.parseInt(parts1[i]);
-            int num2 = Integer.parseInt(parts2[i]);
-            if (num1 > num2) {
-                return true;
-            } else if (num1 < num2) {
-                return false;
-            }
-        }
-        return false;
+        // Fork/test suffixes such as 1.28.2-voxel-gui-test must not crash
+        // the asynchronous update task. Malformed HTTP replies are ignored.
+        return VersionComparison.isNewer(latest, current);
     }
 }
