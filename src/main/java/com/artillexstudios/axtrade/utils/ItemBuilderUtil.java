@@ -32,6 +32,13 @@ public class ItemBuilderUtil {
         }
 
         Object id = settings.get("voxelcore");
+        if (id == null && settings.get("material") instanceof String material
+                && material.startsWith("voxel:")) {
+            // Accept the concise material: voxel:ui-blank form as well as
+            // the explicit voxelcore: voxel:ui-blank key.
+            id = material;
+            settings.remove("material");
+        }
         if (id instanceof String identifier && !identifier.isBlank()) {
             ItemStack registered = VoxelCoreItemProvider.create(identifier);
             if (registered != null) {
