@@ -38,6 +38,20 @@ public final class GuiPlaceholderTextRegression {
             throw new AssertionError("Unexpected lore: " + lines);
         }
 
+        // Fallback must expand precisely the colon-style VoxelCore aliases
+        // shown in Paper's AxTrade title screenshot, including negative offsets.
+        String legacy = GuiFontPlaceholderFallback.resolve(
+                ":offset_-8::generic_54_top:Trading with Partner",
+                token -> switch (token) {
+                    case "%voxelcore_font_offset_-8%" -> "\\uF800";
+                    case "%voxelcore_font_generic_54_top%" -> "\\uF801";
+                    default -> token;
+                });
+        expect("\\uF800\\uF801Trading with Partner", legacy);
+        expect("unknown :not_a_known_glyph:!",
+                GuiFontPlaceholderFallback.resolve("unknown :not_a_known_glyph:!", token -> token));
+        expect(":offset_-8:", GuiFontPlaceholderFallback.resolve(":offset_-8:", null));
+
         expect("%placeholder_without_plugin%",
                 GuiPlaceholderText.resolve("%placeholder_without_plugin%", Map.of(), null, null));
         expect(null, GuiPlaceholderText.resolve(null, trade, null, null));
