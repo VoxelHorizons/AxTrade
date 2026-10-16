@@ -97,7 +97,9 @@ public class GuiFrame {
     }
 
     protected void createItem(@NotNull String slotRoute, String itemRoute, @Nullable GuiAction<InventoryClickEvent> action, Map<String, String> replacements, int amount) {
-        if (file.getString(itemRoute + ".type") == null && file.getString(itemRoute + ".material") == null) return;
+        if (file.getString(itemRoute + ".type") == null
+                && file.getString(itemRoute + ".material") == null
+                && file.getString(itemRoute + ".voxelcore") == null) return;
         final ItemStack it = buildItem(itemRoute, replacements);
         if (amount > 0) it.setAmount(amount);
         final GuiItem guiItem = new GuiItem(it, action);
