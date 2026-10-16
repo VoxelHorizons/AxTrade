@@ -20,6 +20,7 @@ jobs:
           mkdir -p build/test-classes
           javac -encoding UTF-8 -d build/test-classes \
             src/main/java/com/artillexstudios/axtrade/utils/GuiPlaceholderText.java \
+            src/main/java/com/artillexstudios/axtrade/utils/GuiFontPlaceholderFallback.java \
             src/test/java/com/artillexstudios/axtrade/utils/GuiPlaceholderTextRegression.java
       - name: Run placeholder regression checks
         run: java -cp build/test-classes com.artillexstudios.axtrade.utils.GuiPlaceholderTextRegression
