@@ -28,9 +28,10 @@ Add `use-confirm-countdown: true` under a pad to mirror the countdown if needed.
 
 ## Registering VoxelCore items
 
-Use `voxelcore: voxel:ui-blank` to create a **registered VoxelCore item**:
+Use `voxelcore: voxel:ui-blank` (or the shorthand `material: voxel:ui-blank`) to create a **registered VoxelCore item**:
 the integration calls the public VoxelCore `ItemManager.createItem(ContentID)`
-API, preserving its PDC and custom model components.
+API, preserving its PDC and custom model components. Abstract display-only
+items are supported through `ItemManager.createRenderItem(ContentID)`.
 
 ```yaml
 voxelcore: 'voxel:ui-blank'
