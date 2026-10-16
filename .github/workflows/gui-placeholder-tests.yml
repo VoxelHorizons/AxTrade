@@ -1,0 +1,33 @@
+name: GUI Placeholder Regression
+
+on:
+  push:
+    branches: [master, feature/gui-placeholder-integration]
+  pull_request:
+
+jobs:
+  text-pipeline:
+    name: Validate placeholder replacement order
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Compile dependency-free placeholder test
+        run: |
+          mkdir -p build/test-classes
+          javac -encoding UTF-8 -d build/test-classes \
+            src/main/java/com/artillexstudios/axtrade/utils/GuiPlaceholderText.java \
+            src/main/java/com/artillexstudios/axtrade/utils/GuiFontPlaceholderFallback.java \
+            src/main/java/com/artillexstudios/axtrade/utils/VersionComparison.java \
+            src/test/java/com/artillexstudios/axtrade/utils/GuiPlaceholderTextRegression.java \
+            src/test/java/com/artillexstudios/axtrade/utils/VersionComparisonRegression.java
+      - name: Run placeholder regression checks
+        run: |
+          java -cp build/test-classes com.artillexstudios.axtrade.utils.GuiPlaceholderTextRegression
+          java -cp build/test-classes com.artillexstudios.axtrade.utils.VersionComparisonRegression
+
+# Full Maven packaging requires upstream's locally distributed libs/*.jar APIs.
+# This workflow intentionally validates only the dependency-free text pipeline.

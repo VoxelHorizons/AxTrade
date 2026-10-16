@@ -20,6 +20,7 @@ softdepend:
   - ExcellentEconomy
   - Kingdoms
   - PlaceholderAPI
+  - VoxelCore
   - PlayerPoints
   - RivalHarvesterHoes
   - RoyaleEconomy

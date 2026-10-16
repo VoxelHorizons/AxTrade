@@ -87,7 +87,14 @@ public final class AxTrade extends AxPlugin {
         metrics.start();
 
         UpdateNotifier.init(CONFIG, LANG);
-        if (CONFIG.getBoolean("update-notifier.enabled", true)) new UpdateNotifier();
+        String pluginVersion = getDescription().getVersion();
+        // Test builds target this maintained fork, not upstream AxTrade releases.
+        // Never start the remote update timer for our -voxel-* distributions,
+        // even if an existing config.yml still has update-notifier.enabled=true.
+        if (CONFIG.getBoolean("update-notifier.enabled", true)
+                && !pluginVersion.contains("-voxel-")) {
+            new UpdateNotifier();
+        }
     }
 
     @Override
