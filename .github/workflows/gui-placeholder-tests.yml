@@ -21,9 +21,13 @@ jobs:
           javac -encoding UTF-8 -d build/test-classes \
             src/main/java/com/artillexstudios/axtrade/utils/GuiPlaceholderText.java \
             src/main/java/com/artillexstudios/axtrade/utils/GuiFontPlaceholderFallback.java \
-            src/test/java/com/artillexstudios/axtrade/utils/GuiPlaceholderTextRegression.java
+            src/main/java/com/artillexstudios/axtrade/utils/VersionComparison.java \
+            src/test/java/com/artillexstudios/axtrade/utils/GuiPlaceholderTextRegression.java \
+            src/test/java/com/artillexstudios/axtrade/utils/VersionComparisonRegression.java
       - name: Run placeholder regression checks
-        run: java -cp build/test-classes com.artillexstudios.axtrade.utils.GuiPlaceholderTextRegression
+        run: |
+          java -cp build/test-classes com.artillexstudios.axtrade.utils.GuiPlaceholderTextRegression
+          java -cp build/test-classes com.artillexstudios.axtrade.utils.VersionComparisonRegression
 
 # Full Maven packaging requires upstream's locally distributed libs/*.jar APIs.
 # This workflow intentionally validates only the dependency-free text pipeline.
