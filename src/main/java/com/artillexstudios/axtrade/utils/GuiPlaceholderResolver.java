@@ -8,6 +8,7 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -49,7 +50,15 @@ public final class GuiPlaceholderResolver {
                 voxelCoreBridge = bridge;
             }
             final VoxelCoreBridge current = bridge;
-            if (current != null && current.available()) glyphs = current::resolve;
+            if (current != null && current.available()) {
+                glyphs = current::resolve;
+            } else if (papi != null) {
+                // Older VoxelCore distributions can lack the public getter.
+                // Use its existing %voxelcore_font_<name>% PAPI expansion,
+                // including :offset_-8:, without needing a VoxelCore update.
+                glyphs = input -> GuiFontPlaceholderFallback.resolve(input,
+                        name -> PlaceholderAPI.setPlaceholders(viewer, name));
+            }
         }
 
         return GuiPlaceholderText.resolve(text, replacements, papi, glyphs);
@@ -116,12 +125,25 @@ public final class GuiPlaceholderResolver {
 
         private static VoxelCoreBridge connect(Plugin plugin) {
             try {
-                Object service = plugin.getClass().getMethod("getTextPlaceholderService").invoke(plugin);
+                Object service;
+                try {
+                    // Preferred API on newer VoxelCore builds.
+                    service = plugin.getClass().getMethod("getTextPlaceholderService").invoke(plugin);
+                } catch (NoSuchMethodException missing) {
+                    // Compatibility with previously deployed VoxelCore builds.
+                    // The fallback is only used if the public accessor is absent.
+                    Field field = plugin.getClass().getDeclaredField("textPlaceholderService");
+                    field.setAccessible(true);
+                    service = field.get(plugin);
+                }
+                if (service == null) {
+                    throw new IllegalStateException("VoxelCore UI placeholder service has not initialized");
+                }
                 Method resolve = service.getClass().getMethod("resolve", String.class);
                 return new VoxelCoreBridge(plugin, service, resolve);
-            } catch (ReflectiveOperationException | LinkageError exception) {
-                plugin.getLogger().warning("AxTrade cannot use VoxelCore UI placeholders: "
-                        + exception.getMessage());
+            } catch (ReflectiveOperationException | LinkageError | SecurityException | IllegalStateException exception) {
+                plugin.getLogger().warning("AxTrade could not access VoxelCore's UI resolver; "
+                        + "using the PlaceholderAPI font fallback when available: " + exception.getMessage());
                 return new VoxelCoreBridge(plugin, null, null);
             }
         }
