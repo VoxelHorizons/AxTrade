@@ -42,7 +42,21 @@ public final class VoxelCoreItemProvider {
             Object id = contentId.getMethod("parse", String.class, String.class)
                     .invoke(null, identifier, "voxel");
             Method create = manager.getClass().getMethod("createItem", contentId);
-            Object created = create.invoke(manager, id);
+            Object created;
+            try {
+                created = create.invoke(manager, id);
+            } catch (InvocationTargetException failure) {
+                // GUI controls are display-only, so a VoxelCore item defined
+                // as abstract may be rendered without making it giveable.
+                Throwable reason = failure.getCause();
+                if (reason instanceof IllegalArgumentException
+                        && String.valueOf(reason.getMessage()).contains("abstract item")) {
+                    created = manager.getClass().getMethod("createRenderItem", contentId)
+                            .invoke(manager, id);
+                } else {
+                    throw failure;
+                }
+            }
             if (created instanceof ItemStack item) {
                 return item.clone();
             }
