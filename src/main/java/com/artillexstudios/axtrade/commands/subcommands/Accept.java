@@ -6,7 +6,7 @@ import org.bukkit.entity.Player;
 
 import java.util.Map;
 
-import static com.artillexstudios.axtrade.AxTrade.MESSAGEUTILS;
+import static com.artillexstudios.axtrade.utils.TradeMessages.MESSAGES;
 
 public enum Accept {
     INSTANCE;
@@ -14,7 +14,7 @@ public enum Accept {
     public void execute(Player sender, Player other) {
         Request request = Requests.getRequest(sender, other);
         if (request == null || request.getSender().equals(sender) || !request.isActive()) {
-            MESSAGEUTILS.sendLang(sender, "request.no-request", Map.of("%player%", other.getName()));
+            MESSAGES.sendLang(sender, "request.no-request", Map.of("%player%", other.getName()));
             return;
         }
 
