@@ -2,9 +2,11 @@ package com.artillexstudios.axtrade.utils;
 
 import com.artillexstudios.axapi.config.Config;
 import com.artillexstudios.axapi.scheduler.Scheduler;
-import com.artillexstudios.axapi.utils.StringUtils;
 import com.artillexstudios.axtrade.AxTrade;
 import org.bukkit.Bukkit;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import java.util.Map;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -15,7 +17,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.HashMap;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
 
@@ -53,9 +54,7 @@ public class UpdateNotifier implements Listener {
             this.newest = !isOutdated(current);
 
             if (latest == null || newest) return;
-            Scheduler.get().runLaterAsync(t2 -> {
-                Bukkit.getConsoleSender().sendMessage(getMessage());
-            }, 50L);
+            Scheduler.get().runLater(t2 -> sendUpdate(Bukkit.getConsoleSender()), 50L);
             t.cancel();
         }, 0, time);
     }
@@ -65,16 +64,15 @@ public class UpdateNotifier implements Listener {
         if (latest == null || newest) return;
         if (!onJoin) return;
         if (!event.getPlayer().hasPermission(AxTrade.getInstance().getName().toLowerCase() + ".update-notify")) return;
-        Scheduler.get().runLaterAsync(t -> {
-            event.getPlayer().sendMessage(getMessage());
-        }, 50L);
+        Player player = event.getPlayer();
+        // Evaluate player-specific PAPI expansions on the player's region thread.
+        Scheduler.get().runLaterAsync(t ->
+                Scheduler.get().run(player, task -> sendUpdate(player), () -> {}), 50L);
     }
 
-    private String getMessage() {
-        HashMap<String, String> map = new HashMap<>();
-        map.put("%current%", current);
-        map.put("%latest%", latest);
-        return StringUtils.formatToString(String.format("%s %s", prefix, updateNotifier), map);
+    private void sendUpdate(CommandSender recipient) {
+        TradeMessages.MESSAGES.sendFormatted(recipient, String.format("%s %s", prefix, updateNotifier),
+                Map.of("%current%", current, "%latest%", latest));
     }
 
     @Nullable
