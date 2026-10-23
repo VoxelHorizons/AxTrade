@@ -22,7 +22,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 import static com.artillexstudios.axtrade.AxTrade.CONFIG;
-import static com.artillexstudios.axtrade.AxTrade.MESSAGEUTILS;
+import static com.artillexstudios.axtrade.utils.TradeMessages.MESSAGES;
 
 public class TradeListeners implements Listener {
 
@@ -50,7 +50,7 @@ public class TradeListeners implements Listener {
             if (request.getReceiver().equals(event.getPlayer())) {
                 iterator.remove();
                 if (!request.isActive()) continue;
-                MESSAGEUTILS.sendLang(request.getSender(), "request.expired", Map.of("%player%", request.getReceiver().getName()));
+                MESSAGES.sendLang(request.getSender(), "request.expired", Map.of("%player%", request.getReceiver().getName()));
             }
         }
     }
