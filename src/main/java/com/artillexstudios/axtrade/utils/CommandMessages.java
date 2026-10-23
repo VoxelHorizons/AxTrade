@@ -61,7 +61,9 @@ public class CommandMessages implements LocaleReader {
                 break;
             }
         }
-        return StringUtils.formatToString(CONFIG.getString("prefix", "") + res);
+        // LocaleReader has no sender context; only global PAPI tokens work here.
+        return StringUtils.formatToString(TradeMessages.resolve(
+                null, CONFIG.getString("prefix", "") + res, java.util.Map.of()));
     }
 
     private final Locale locale = new Locale("en", "US");
