@@ -10,10 +10,12 @@ import com.artillexstudios.axtrade.hooks.HookManager;
 import com.artillexstudios.axtrade.hooks.currency.CurrencyHook;
 import com.artillexstudios.axtrade.safety.SafetyManager;
 import com.artillexstudios.axtrade.utils.BlacklistUtils;
+import com.artillexstudios.axtrade.utils.GuiPlaceholderResolver;
 import com.artillexstudios.axtrade.utils.NumberUtils;
 import com.artillexstudios.axtrade.utils.ShulkerUtils;
 import com.artillexstudios.axtrade.utils.TaxUtils;
 import com.artillexstudios.axtrade.utils.Utils;
+import dev.triumphteam.gui.components.GuiAction;
 import dev.triumphteam.gui.guis.BaseGui;
 import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
@@ -81,69 +83,83 @@ public class TradeGui extends GuiFrame {
     }
 
     public void update() {
+        // Base and pad are separate visual items, but invoke the exact same
+        // owning-player confirmation/cancellation handler and share state.
         if (player.hasConfirmed()) {
-            super.createItem("own.confirm-item.slot", "own.confirm-item.cancel", event -> {
+            renderConfirmation("own.confirm-item", "cancel", event -> {
                 event.setCancelled(true);
                 if (confirmCooldown.hasCooldown(player.getPlayer())) return;
                 confirmCooldown.addCooldown(player.getPlayer(), 50L);
                 player.cancel();
                 trade.update();
-            }, Map.of(), CONFIG.getBoolean("static-accept-item-amount", true) ? 1 : player.getConfirmed());
+            }, Map.of(), CONFIG.getBoolean("static-accept-item-amount", true)
+                    ? 1 : player.getConfirmed());
         } else {
-            super.createItem("own.confirm-item.slot", "own.confirm-item.accept", event -> {
+            renderConfirmation("own.confirm-item", "accept", event -> {
                 event.setCancelled(true);
                 if (confirmCooldown.hasCooldown(player.getPlayer())) return;
                 confirmCooldown.addCooldown(player.getPlayer(), 50L);
                 player.confirm();
-            }, Map.of());
+            }, Map.of(), 1);
         }
 
+        Map<String, String> partnerNames = Map.of(
+                "%own-name%", player.getPlayer().getName(),
+                "%partner-name%", player.getOtherPlayer().getPlayer().getName()
+        );
+        // Partner controls are a read-only mirror, including their padding.
         if (player.getOtherPlayer().hasConfirmed()) {
-            super.createItem("partner.confirm-item.slot", "partner.confirm-item.cancel", event -> {
-                event.setCancelled(true);
-            }, Map.of(
-                    "%own-name%", player.getPlayer().getName(),
-                    "%partner-name%", player.getOtherPlayer().getPlayer().getName()
-            ), CONFIG.getBoolean("static-accept-item-amount", true) ? 1 : player.getOtherPlayer().getConfirmed());
+            renderConfirmation("partner.confirm-item", "cancel", event ->
+                    event.setCancelled(true), partnerNames,
+                    CONFIG.getBoolean("static-accept-item-amount", true)
+                            ? 1 : player.getOtherPlayer().getConfirmed());
         } else {
-            super.createItem("partner.confirm-item.slot", "partner.confirm-item.accept", event -> {
-                event.setCancelled(true);
-            }, Map.of(
-                    "%own-name%", player.getPlayer().getName(),
-                    "%partner-name%", player.getOtherPlayer().getPlayer().getName()
-            ));
+            renderConfirmation("partner.confirm-item", "accept", event ->
+                    event.setCancelled(true), partnerNames, 1);
         }
 
         for (String currencyItem : GUIS.getSection("own").getRoutesAsStrings(false)) {
+            // A pad belongs to the preceding currency control; it inherits the
+            // provider, currency amount/tax tokens and click behavior.
+            if (currencyItem.endsWith("-pad")) continue;
             final String currencyStr = GUIS.getString("own." + currencyItem + ".currency", null);
             if (currencyStr == null) continue;
 
             CurrencyHook currencyHook = HookManager.getCurrencyHook(currencyStr);
             if (currencyHook == null) continue;
-            super.createItem("own." + currencyItem, event -> {
-                handleCurrencyClick(currencyStr, event);
-            }, Map.of(
+            Map<String, String> currencyValues = Map.of(
                     "%amount%", NumberUtils.formatNumber(player.getCurrency(currencyStr)),
                     "%tax-amount%", NumberUtils.formatNumber(TaxUtils.getTotalAfterTax(player.getCurrency(currencyStr), currencyHook)),
                     "%tax-percent%", NumberUtils.formatNumber(TaxUtils.getTaxPercent(currencyHook).doubleValue()),
                     "%tax-fee%", NumberUtils.formatNumber(TaxUtils.getTotalTax(player.getCurrency(currencyStr), currencyHook))
-            ));
+            );
+            GuiAction<InventoryClickEvent> click = event -> handleCurrencyClick(currencyStr, event);
+            super.createItem("own." + currencyItem, click, currencyValues);
+            String padRoute = "own." + currencyItem + "-pad";
+            if (GUIS.getSection(padRoute) != null) {
+                super.createItem(padRoute, click, currencyValues);
+            }
         }
 
         for (String currencyItem : GUIS.getSection("partner").getRoutesAsStrings(false)) {
+            if (currencyItem.endsWith("-pad")) continue;
             final String currencyStr = GUIS.getString("partner." + currencyItem + ".currency", null);
             if (currencyStr == null) continue;
 
             CurrencyHook currencyHook = HookManager.getCurrencyHook(currencyStr);
             if (currencyHook == null) continue;
-            super.createItem("partner." + currencyItem, event -> {
-                event.setCancelled(true);
-            }, Map.of(
+            Map<String, String> currencyValues = Map.of(
                     "%amount%", NumberUtils.formatNumber(player.getOtherPlayer().getCurrency(currencyStr)),
                     "%tax-amount%", NumberUtils.formatNumber(TaxUtils.getTotalAfterTax(player.getOtherPlayer().getCurrency(currencyStr), currencyHook)),
                     "%tax-percent%", NumberUtils.formatNumber(TaxUtils.getTaxPercent(currencyHook).doubleValue()),
                     "%tax-fee%", NumberUtils.formatNumber(TaxUtils.getTotalTax(player.getOtherPlayer().getCurrency(currencyStr), currencyHook))
-            ));
+            );
+            GuiAction<InventoryClickEvent> click = event -> event.setCancelled(true);
+            super.createItem("partner." + currencyItem, click, currencyValues);
+            String padRoute = "partner." + currencyItem + "-pad";
+            if (GUIS.getSection(padRoute) != null) {
+                super.createItem(padRoute, click, currencyValues);
+            }
         }
 
         for (int slot : otherSlots) {
@@ -159,6 +175,27 @@ public class TradeGui extends GuiFrame {
                 gui.updateItem(slot, new GuiItem(otherItems.get(n), event -> event.setCancelled(true)));
             n++;
         }
+    }
+
+    /**
+     * The main button and optional -pad may have independent materials/models,
+     * slots and lore, but always share the confirmation handler and active state.
+     * A flat pad definition works in both states; accept/cancel sections allow
+     * different textures for each state. Padding stays at amount 1 by default.
+     */
+    private void renderConfirmation(String baseRoute, String state,
+                                    GuiAction<InventoryClickEvent> action,
+                                    Map<String, String> replacements, int amount) {
+        super.createItem(baseRoute + ".slot", baseRoute + "." + state,
+                action, replacements, amount);
+
+        String padRoute = baseRoute + "-pad";
+        if (GUIS.getSection(padRoute) == null) return;
+        String padItem = GUIS.getSection(padRoute + "." + state) == null
+                ? padRoute : padRoute + "." + state;
+        int padAmount = GUIS.getBoolean(padRoute + ".use-confirm-countdown", false)
+                ? amount : 1;
+        super.createItem(padRoute + ".slot", padItem, action, replacements, padAmount);
     }
 
     private void handleClickTop(InventoryClickEvent event) {
@@ -286,7 +323,8 @@ public class TradeGui extends GuiFrame {
         trade.prepTime = System.currentTimeMillis();
         event.getWhoClicked().closeInventory();
 
-        List<Component> lines = StringUtils.formatList(LANG.getStringList("currency-editor-sign"));
+        List<Component> lines = StringUtils.formatList(GuiPlaceholderResolver.resolveLines(
+                player.getPlayer(), LANG.getStringList("currency-editor-sign"), Map.of()));
         lines.set(0, Component.empty());
 
         SignInput sign = new SignInput.Builder().setLines(lines).setHandler((player1, result) -> {
@@ -337,7 +375,8 @@ public class TradeGui extends GuiFrame {
 
         BaseGui shulkerGui = Gui.storage()
                 .rows(3)
-                .title(StringUtils.format(Utils.getFormattedItemName(event.getCurrentItem())))
+                .title(StringUtils.format(GuiPlaceholderResolver.resolve(
+                        player.getPlayer(), Utils.getFormattedItemName(event.getCurrentItem()))))
                 .disableAllInteractions()
                 .create();
 
@@ -382,10 +421,14 @@ public class TradeGui extends GuiFrame {
     }
 
     public void updateTitle() {
-        String newTitle = GUIS.getString("title")
-                .replace("%player%", player.getOtherPlayer().getPlayer().getName())
-                .replace("%own-status%", player.hasConfirmed() ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting"))
-                .replace("%partner-status%", player.getOtherPlayer().hasConfirmed() ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting"));
+        String newTitle = GuiPlaceholderResolver.resolve(player.getPlayer(), GUIS.getString("title"),
+                Map.of(
+                        "%player%", player.getOtherPlayer().getPlayer().getName(),
+                        "%own-name%", player.getPlayer().getName(),
+                        "%partner-name%", player.getOtherPlayer().getPlayer().getName(),
+                        "%own-status%", player.hasConfirmed() ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting"),
+                        "%partner-status%", player.getOtherPlayer().hasConfirmed() ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting")
+                ));
 
         // don't update title if it didn't change
         if (currentTitle.equals(newTitle)) return;

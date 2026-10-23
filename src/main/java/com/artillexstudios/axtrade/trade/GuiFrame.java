@@ -5,6 +5,7 @@ import com.artillexstudios.axapi.nms.wrapper.ServerPlayerWrapper;
 import com.artillexstudios.axapi.utils.NumberUtils;
 import com.artillexstudios.axapi.utils.PlayerTextures;
 import com.artillexstudios.axtrade.utils.ItemBuilderUtil;
+import com.artillexstudios.axtrade.utils.GuiPlaceholderResolver;
 import dev.triumphteam.gui.components.GuiAction;
 import dev.triumphteam.gui.guis.BaseGui;
 import dev.triumphteam.gui.guis.GuiItem;
@@ -19,6 +20,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.artillexstudios.axtrade.AxTrade.LANG;
 
 public class GuiFrame {
     private static final ItemStack air = new ItemStack(Material.AIR);
@@ -45,8 +48,7 @@ public class GuiFrame {
     }
 
     protected ItemStack buildItem(@NotNull String key) {
-        if (file.getSection(key) == null) return air;
-        return ItemBuilderUtil.newBuilder(file.getSection(key), player).get();
+        return buildItem(key, Map.of());
     }
 
     protected ItemStack buildItem(@NotNull String key, Map<String, String> replacements) {
@@ -60,6 +62,18 @@ public class GuiFrame {
         map.put("%partner-head%", otherTextures.texture() == null ? "" : otherTextures.texture());
         map.put("%own-name%", player.getPlayer().getName());
         map.put("%partner-name%", trade.getOtherPlayer(player).getPlayer().getName());
+        // AxTrade's title has historically used %player% for the trade partner.
+        // Preserve that alias consistently in item names, lore and models too.
+        map.put("%player%", trade.getOtherPlayer(player).getPlayer().getName());
+
+        // These title tokens also work in item names and lore. Keep them tied
+        // to the viewer's side of the trade, not the console or GUI creator.
+        TradePlayer own = trade.getPlayer1().getPlayer().equals(player)
+                ? trade.getPlayer1() : trade.getPlayer2();
+        map.put("%own-status%", own.hasConfirmed()
+                ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting"));
+        map.put("%partner-status%", own.getOtherPlayer().hasConfirmed()
+                ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting"));
 
         return ItemBuilderUtil.newBuilder(file.getSection(key), map, player).get();
     }
@@ -77,13 +91,17 @@ public class GuiFrame {
     }
 
     protected void createItem(@NotNull String slotRoute, String itemRoute, @Nullable GuiAction<InventoryClickEvent> action, Map<String, String> replacements) {
-        createItem(slotRoute, itemRoute, action, replacements, 1);
+        // -1 uses the (potentially placeholder-resolved) configured item amount.
+        // Trade confirmation countdowns still pass an explicit number.
+        createItem(slotRoute, itemRoute, action, replacements, -1);
     }
 
     protected void createItem(@NotNull String slotRoute, String itemRoute, @Nullable GuiAction<InventoryClickEvent> action, Map<String, String> replacements, int amount) {
-        if (file.getString(itemRoute + ".type") == null && file.getString(itemRoute + ".material") == null) return;
+        if (file.getString(itemRoute + ".type") == null
+                && file.getString(itemRoute + ".material") == null
+                && file.getString(itemRoute + ".voxelcore") == null) return;
         final ItemStack it = buildItem(itemRoute, replacements);
-        it.setAmount(amount);
+        if (amount > 0) it.setAmount(amount);
         final GuiItem guiItem = new GuiItem(it, action);
         if (opened) {
             for (int slot : getSlots(slotRoute)) {
@@ -99,10 +117,13 @@ public class GuiFrame {
 
         if (!file.getStringList(r).isEmpty()) {
             for (Object route : file.getStringList(r)) {
-                if (NumberUtils.isInt(("" + route))) {
-                    slots.add(Integer.parseInt(("" + route)));
+                // Slot lists are numeric or ranges, but may be strings generated
+                // by PlaceholderAPI. All slots use the viewing player's context.
+                String resolved = GuiPlaceholderResolver.resolve(player, String.valueOf(route));
+                if (NumberUtils.isInt(resolved)) {
+                    slots.add(Integer.parseInt(resolved));
                 } else {
-                    String[] split = ("" + route).split("-");
+                    String[] split = resolved.split("-");
                     int min = Integer.parseInt(split[0]);
                     int max = Integer.parseInt(split[1]);
                     for (int i = min; i <= max; i++) {
@@ -111,7 +132,12 @@ public class GuiFrame {
                 }
             }
         } else {
-            slots.add(file.getInt(r));
+            String slot = file.getString(r);
+            if (slot != null && slot.contains("%")) {
+                slots.add(Integer.parseInt(GuiPlaceholderResolver.resolve(player, slot)));
+            } else {
+                slots.add(file.getInt(r));
+            }
         }
 
         return slots;
