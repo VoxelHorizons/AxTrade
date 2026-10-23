@@ -38,6 +38,23 @@ public final class GuiPlaceholderTextRegression {
             throw new AssertionError("Unexpected lore: " + lines);
         }
 
+
+        // Config prefixes and lang messages share the ordered parser.
+        String chat = GuiPlaceholderText.resolve(
+                ":branding_icon_small: &7[%player_name%] &fTrade with %player% for %amount%",
+                trade,
+                line -> line.replace("%player_name%", "Viewer"),
+                line -> line.replace(":branding_icon_small:", "ICON"));
+        expect("ICON &7[Viewer] &fTrade with Partner for 200", chat);
+
+        // Hover labels render with the recipient context, without changing click actions.
+        String hover = GuiPlaceholderText.resolve(
+                "Click to accept %player%'s trade (%player_name%)", trade,
+                line -> line.replace("%player_name%", "Viewer"), null);
+        expect("Click to accept Partner's trade (Viewer)", hover);
+        expect("Trading %player_name%", GuiPlaceholderText.resolve(
+                "Trading %player_name%", Map.of(), null, null));
+
         // Fallback must expand precisely the colon-style VoxelCore aliases
         // shown in Paper's AxTrade title screenshot, including negative offsets.
         String legacy = GuiFontPlaceholderFallback.resolve(
