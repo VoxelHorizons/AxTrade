@@ -8,6 +8,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -85,11 +86,12 @@ public final class PaperCurrencyDialog {
             Object optionsBuilder = optionsClass.getMethod("builder").invoke(null);
             Object options = optionsBuilderClass.getMethod("build").invoke(optionsBuilder);
             UUID viewerId = viewer.getUniqueId();
+            AtomicBoolean completed = new AtomicBoolean(false);
 
             Object accepted = action(callbackClass, optionsClass, actionClass, options,
-                    callback(callbackClass, viewerId, completion, true));
+                    callback(callbackClass, viewerId, completed, completion, true));
             Object denied = action(callbackClass, optionsClass, actionClass, options,
-                    callback(callbackClass, viewerId, completion, false));
+                    callback(callbackClass, viewerId, completed, completion, false));
             Object yesButton = actionButtonClass.getMethod("create",
                     Component.class, Component.class, int.class, actionClass)
                     .invoke(null, confirm, null, 120, accepted);
@@ -127,13 +129,14 @@ public final class PaperCurrencyDialog {
                 .invoke(null, callback, options);
     }
 
-    private static Object callback(Class<?> callbackType, UUID viewerId,
+    private static Object callback(Class<?> callbackType, UUID viewerId, AtomicBoolean completed,
                                    Consumer<String> completion, boolean confirm) {
         return Proxy.newProxyInstance(callbackType.getClassLoader(), new Class<?>[]{callbackType},
                 (proxy, method, args) -> {
                     if ("accept".equals(method.getName()) && args != null && args.length == 2
                             && args[1] instanceof Player responder
-                            && viewerId.equals(responder.getUniqueId())) {
+                            && viewerId.equals(responder.getUniqueId())
+                            && completed.compareAndSet(false, true)) {
                         String result = null;
                         if (confirm && args[0] != null) {
                             // Invoke the public Paper interface method rather than
