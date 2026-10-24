@@ -66,6 +66,18 @@ public class TradeGui extends GuiFrame {
                 .create();
 
         setGui(gui);
+        // Player heads are static controls, not currency entries. The regular
+        // update() loop only renders confirmation controls and registered
+        // currencies, so explicitly populate both profile head slots before
+        // opening the inventory. buildItem() supplies skin textures and
+        // resolves the viewer/partner placeholders for each side.
+        for (String side : List.of("own", "partner")) {
+            String headRoute = side + ".head";
+            if (GUIS.getSection(headRoute) != null) {
+                super.createItem(headRoute, event -> event.setCancelled(true));
+            }
+        }
+
         gui.setDefaultTopClickAction(this::handleClickTop);
         gui.setDragAction(this::handleDrag);
         gui.setPlayerInventoryAction(this::handleClickBottom);
