@@ -17,8 +17,10 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Validate automatic semantic version bumps
-        run: python3 tests/test-release-version.py
+      - name: Validate semantic version bump and safe release staging
+        run: |
+          python3 tests/test-release-version.py
+          python3 tests/test-release-stage.py
       - name: Prepare optional-API-free core release
         run: python3 scripts/prepare-gui-test.py --core-release
       - name: Build Voxel Core distribution
