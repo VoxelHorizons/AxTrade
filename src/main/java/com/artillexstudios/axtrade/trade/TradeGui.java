@@ -11,6 +11,7 @@ import com.artillexstudios.axtrade.hooks.currency.CurrencyHook;
 import com.artillexstudios.axtrade.safety.SafetyManager;
 import com.artillexstudios.axtrade.utils.BlacklistUtils;
 import com.artillexstudios.axtrade.utils.GuiPlaceholderResolver;
+import com.artillexstudios.axtrade.utils.CurrencyInputMode;
 import com.artillexstudios.axtrade.utils.ConfirmationItemPolicy;
 import com.artillexstudios.axtrade.utils.NumberUtils;
 import com.artillexstudios.axtrade.utils.ShulkerUtils;
@@ -348,46 +349,72 @@ public class TradeGui extends GuiFrame {
         }
         player.cancel();
         trade.update();
-        inSign = true;
+        inSign = true; // All temporary input screens must suppress trade-abort-on-close.
         trade.prepTime = System.currentTimeMillis();
         event.getWhoClicked().closeInventory();
 
+        String mode = CONFIG.getString("currency-input.mode", "auto");
+        if (CurrencyInputMode.useDialog(mode, PaperCurrencyDialog.isSupported(player.getPlayer()))) {
+            Map<String, String> placeholders = Map.of(
+                    "%currency%", currencyStr, "%partner-name%", player.getOtherPlayer().getPlayer().getName());
+            boolean shown = PaperCurrencyDialog.open(
+                    player.getPlayer(),
+                    StringUtils.format(GuiPlaceholderResolver.resolve(player.getPlayer(),
+                            LANG.getString("currency-editor-dialog.title", "&aEdit %currency%"), placeholders)),
+                    StringUtils.format(GuiPlaceholderResolver.resolve(player.getPlayer(),
+                            LANG.getString("currency-editor-dialog.input-label", "&fAmount"), placeholders)),
+                    StringUtils.format(GuiPlaceholderResolver.resolve(player.getPlayer(),
+                            LANG.getString("currency-editor-dialog.confirm", "&aApply"), placeholders)),
+                    StringUtils.format(GuiPlaceholderResolver.resolve(player.getPlayer(),
+                            LANG.getString("currency-editor-dialog.cancel", "&cCancel"), placeholders)),
+                    Double.toString(player.getCurrency(currencyStr)),
+                    CONFIG.getInt("currency-input.max-length", 32),
+                    CONFIG.getInt("currency-input.width", 240),
+                    amount -> completeCurrencyInput(player.getPlayer(), currencyStr, amount));
+            if (shown) return;
+        }
+
+        // Existing sign workflow is the fallback on older Spigot/Paper versions,
+        // or when the modern API cannot create a dialog at runtime.
         List<Component> lines = StringUtils.formatList(GuiPlaceholderResolver.resolveLines(
                 player.getPlayer(), LANG.getStringList("currency-editor-sign"), Map.of()));
         lines.set(0, Component.empty());
 
-        SignInput sign = new SignInput.Builder().setLines(lines).setHandler((player1, result) -> {
-            if (trade.isEnded()) return;
-            trade.prepTime = System.currentTimeMillis();
-            String am = result[0];
-            TradePlayer.Result addResult = player.setCurrency(currencyStr, am);
-            if (addResult == TradePlayer.Result.SUCCESS) {
-                MESSAGES.sendLang(player1, "currency-editor.success");
-            } else {
-                switch (addResult) {
-                    case NOT_ENOUGH_CURRENCY -> {
-                        MESSAGES.sendLang(player1, "currency-editor.not-enough");
-                    }
-                    default -> {
-                        MESSAGES.sendLang(player1, "currency-editor.failed");
-                    }
-                }
-            }
-
-            Runnable runnable = () -> {
-                if (trade.isEnded()) return;
-                gui.open(player.getPlayer());
-                inSign = false;
-                trade.update();
-                currentTitle = "";
-                player.cancel();
-                updateTitle();
-            };
-            Scheduler.get().run(player.getPlayer(), task -> {
-                runnable.run();
-            }, runnable);
-        }).build(player.getPlayer());
+        SignInput sign = new SignInput.Builder().setLines(lines).setHandler((viewer, result) ->
+                completeCurrencyInput(viewer, currencyStr, result[0])).build(player.getPlayer());
         sign.open();
+    }
+
+    /** Both native dialog and sign submit to the identical currency validator. */
+    private void completeCurrencyInput(Player submitter, String currencyStr, @Nullable String value) {
+        if (trade.isEnded()) return;
+        if (!submitter.getUniqueId().equals(player.getPlayer().getUniqueId())) return;
+        trade.prepTime = System.currentTimeMillis();
+
+        // Cancel means no currency change; reopening must not reset the offer.
+        if (value != null) {
+            TradePlayer.Result result = player.setCurrency(currencyStr, value);
+            if (result == TradePlayer.Result.SUCCESS) {
+                MESSAGES.sendLang(submitter, "currency-editor.success");
+            } else if (result == TradePlayer.Result.NOT_ENOUGH_CURRENCY) {
+                MESSAGES.sendLang(submitter, "currency-editor.not-enough");
+            } else {
+                MESSAGES.sendLang(submitter, "currency-editor.failed");
+            }
+        }
+
+        Runnable reopen = () -> {
+            if (trade.isEnded() || !player.getPlayer().isOnline()) return;
+            gui.open(player.getPlayer());
+            inSign = false;
+            trade.update();
+            currentTitle = "";
+            player.cancel();
+            updateTitle();
+        };
+        // Let the native client's dialog close before opening a chest GUI.
+        // Scheduler wrapper supplies Paper region-safe handling or main thread.
+        Scheduler.get().runLater(player.getPlayer(), task -> reopen.run(), reopen, 1);
     }
 
     public void handleShulkerClick(InventoryClickEvent event) {
