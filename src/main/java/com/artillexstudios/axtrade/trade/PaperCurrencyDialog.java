@@ -136,8 +136,10 @@ public final class PaperCurrencyDialog {
                             && viewerId.equals(responder.getUniqueId())) {
                         String result = null;
                         if (confirm && args[0] != null) {
-                            Object value = args[0].getClass().getMethod("getText", String.class)
-                                    .invoke(args[0], INPUT_KEY);
+                            // Invoke the public Paper interface method rather than
+                            // CraftBukkit's potentially inaccessible implementation.
+                            Object value = Class.forName(PREFIX + "dialog.DialogResponseView")
+                                    .getMethod("getText", String.class).invoke(args[0], INPUT_KEY);
                             result = value instanceof String ? (String) value : "";
                         }
                         completion.accept(result);
