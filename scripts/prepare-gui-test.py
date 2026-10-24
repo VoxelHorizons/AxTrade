@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
-"""Prepare a CI-only GUI test distribution from the unmodified full-source fork.
+"""Prepare a dependency-limited distribution from the unmodified full-source fork.
 
 The upstream POM references private/non-redistributable system-scoped currency
 libraries missing from GitHub. Instead of faking APIs or silently claiming a
 full production build, prune those *optional* hooks in the CI workspace only.
+
+Use --core-release to build a transparent Voxel Core distribution, or the
+existing default GUI-test distribution for pull request CI. Neither is the
+complete upstream integration set.
 """
 from pathlib import Path
+import argparse
 import xml.etree.ElementTree as ET
+
+parser = argparse.ArgumentParser(description="Prepare AxTrade core/Vault distribution without private API dependencies")
+parser.add_argument("--core-release", action="store_true", help="Build the labelled Voxel Core release variant")
+args = parser.parse_args()
 
 root = Path(__file__).resolve().parents[1]
 pom = root / "pom.xml"
@@ -42,7 +51,7 @@ ET.SubElement(adventure, ns + "scope").text = "provided"
 # Intentionally mark these as **GUI testing only**, not production builds.
 version = tree.getroot().find(ns + "version")
 assert version is not None
-version.text = version.text + "-voxel-gui-test"
+version.text += "-voxel-core" if args.core_release else "-voxel-gui-test"
 
 pom.write_bytes(ET.tostring(tree.getroot(), encoding="utf-8", xml_declaration=True))
 
@@ -146,4 +155,4 @@ public final class AxShulkersHook {
 }
 ''', encoding="utf-8")
 
-print("Prepared GUI-test sources (core trades, Vault, experience, placeholder currency).")
+print("Prepared %s sources (core trades, Vault, experience, placeholder currency; other hooks omitted)." % ("Voxel Core release" if args.core_release else "GUI test"))
