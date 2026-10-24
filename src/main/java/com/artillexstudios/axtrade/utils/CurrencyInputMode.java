@@ -11,6 +11,7 @@ public final class CurrencyInputMode {
 
     public static boolean useDialog(String mode, boolean supported) {
         if (!supported) return false;
-        return !"sign".equals(mode == null ? "auto" : mode.trim().toLowerCase(Locale.ROOT));
+        String normalized = mode == null ? "auto" : mode.trim().toLowerCase(Locale.ROOT);
+        return "auto".equals(normalized) || "dialog".equals(normalized);
     }
 }
