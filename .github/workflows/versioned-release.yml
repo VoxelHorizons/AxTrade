@@ -1,0 +1,141 @@
+name: Versioned AxTrade Release
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version change (PR merges automatically use patch)"
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+# Serialise all releases and version commits so merged PRs cannot race to
+# publish duplicate tags or overwrite a version bump.
+concurrency:
+  group: axtrade-versioned-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Bot-generated version commits must never trigger a second version bump.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.actor != 'github-actions[bot]' &&
+       !contains(github.event.head_commit.message, '[skip release]'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current master and release tags
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Java and Maven
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Verify versioning logic
+        run: python3 tests/test-release-version.py
+
+      - name: Select next AxTrade version
+        id: version
+        env:
+          RELEASE_BUMP: ${{ github.event_name == 'workflow_dispatch' && inputs.bump || 'patch' }}
+        run: |
+          set -euo pipefail
+          git fetch origin master --tags
+          python3 scripts/bump-release-version.py --bump "$RELEASE_BUMP"
+          if git show-ref --verify --quiet "refs/tags/v${{ steps.version.outputs.version }}"; then
+            echo "Release tag already exists: v${{ steps.version.outputs.version }}" >&2
+            exit 1
+          fi
+          cp pom.xml "$RUNNER_TEMP/axtrade-release-pom.xml"
+
+      # The unmodified upstream POM needs non-redistributable optional APIs
+      # under libs/*.jar. Produce an honest Voxel Core distribution instead;
+      # never label it as the complete production plugin.
+      - name: Prepare Voxel Core release build
+        run: python3 scripts/prepare-gui-test.py --core-release
+
+      - name: Build and shade AxTrade Voxel Core
+        run: mvn -B --no-transfer-progress -DskipTests package
+
+      - name: Verify exact built plugin version and stage release file
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          jar="target/AxTrade-${version}-voxel-core.jar"
+          test -f "$jar"
+          jar tf "$jar" | grep -Fx plugin.yml
+          unzip -p "$jar" plugin.yml | grep -Fx "name: AxTrade"
+          unzip -p "$jar" plugin.yml | grep -Fx "version: '${version}-voxel-core'"
+          mkdir -p dist
+          cp "$jar" "dist/AxTrade-${version}-voxel-core.jar"
+
+      - name: Upload versioned JAR build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AxTrade-${{ steps.version.outputs.version }}-Voxel-Core
+          path: dist/AxTrade-${{ steps.version.outputs.version }}-voxel-core.jar
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Commit the Maven version bump and create immutable release tag
+        run: |
+          set -euo pipefail
+          # CI's core-build transformation must NEVER enter master.
+          git restore -- pom.xml src/main/java/com/artillexstudios/axtrade/hooks
+          cp "$RUNNER_TEMP/axtrade-release-pom.xml" pom.xml
+          git diff --exit-code -- src/main/java/com/artillexstudios/axtrade/hooks
+          if [ "$(git status --porcelain | wc -l)" -ne 1 ]; then
+            echo "Unexpected workspace modifications; refusing release" >&2
+            git status --short
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pom.xml
+          git commit -m "chore(release): v${{ steps.version.outputs.version }} [skip ci] [skip release]"
+          git tag -a "v${{ steps.version.outputs.version }}" -m "AxTrade v${{ steps.version.outputs.version }} Voxel Core"
+          # Push commit and matching tag atomically to avoid orphaned releases.
+          git push --atomic origin HEAD:refs/heads/master "refs/tags/v${{ steps.version.outputs.version }}"
+
+      - name: Publish permanent GitHub release with JAR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          cat > "$RUNNER_TEMP/release-notes.md" <<EOF
+          AxTrade VoxelHorizons v${version} — automated patch/minor/major release.
+
+          **Distribution: Voxel Core (not the complete upstream build).**
+          Supports core trading, the custom GUI and placeholders, Vault,
+          experience, and configured PlaceholderAPI currencies.
+          Non-redistributable third-party currency APIs are absent from this
+          repository, so their optional hooks are **not included**.
+
+          - Source: current \`master\` as of the release tag.
+          - Plugin version inside the JAR: \`${version}-voxel-core\`
+          - Tag: \`v${version}\`
+
+          For a full integration build, the upstream optional API JARs must be
+          supplied to the build securely and their redistribution verified.
+          EOF
+          gh release create "v${version}" "dist/AxTrade-${version}-voxel-core.jar" \
+            --title "AxTrade v${version} (Voxel Core)" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            --verify-tag
