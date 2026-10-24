@@ -1,6 +1,7 @@
 package com.artillexstudios.axtrade.trade;
 
 import com.artillexstudios.axapi.config.Config;
+import com.artillexstudios.axapi.libs.boostedyaml.block.implementation.Section;
 import com.artillexstudios.axapi.nms.wrapper.ServerPlayerWrapper;
 import com.artillexstudios.axapi.utils.NumberUtils;
 import com.artillexstudios.axapi.utils.PlayerTextures;
@@ -75,7 +76,14 @@ public class GuiFrame {
         map.put("%partner-status%", own.getOtherPlayer().hasConfirmed()
                 ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting"));
 
-        return ItemBuilderUtil.newBuilder(file.getSection(key), map, player).get();
+        // An accept/cancel state may inherit common item fields (such as
+        // name and lore) from its confirm-item or confirm-item-pad section.
+        // Explicit state fields take precedence; nothing is synthesized.
+        Section shared = null;
+        if (key.endsWith(".accept") || key.endsWith(".cancel")) {
+            shared = file.getSection(key.substring(0, key.lastIndexOf('.')));
+        }
+        return ItemBuilderUtil.newBuilder(file.getSection(key), shared, map, player).get();
     }
 
     protected void createItem(@NotNull String route) {
@@ -97,9 +105,13 @@ public class GuiFrame {
     }
 
     protected void createItem(@NotNull String slotRoute, String itemRoute, @Nullable GuiAction<InventoryClickEvent> action, Map<String, String> replacements, int amount) {
-        if (file.getString(itemRoute + ".type") == null
-                && file.getString(itemRoute + ".material") == null
-                && file.getString(itemRoute + ".voxelcore") == null) return;
+        // Do not discard a vitem-only GUI item. Confirm controls may also
+        // inherit their render source from the common parent section.
+        boolean hasSource = hasItemSource(itemRoute);
+        if (!hasSource && (itemRoute.endsWith(".accept") || itemRoute.endsWith(".cancel"))) {
+            hasSource = hasItemSource(itemRoute.substring(0, itemRoute.lastIndexOf('.')));
+        }
+        if (!hasSource) return;
         final ItemStack it = buildItem(itemRoute, replacements);
         if (amount > 0) it.setAmount(amount);
         final GuiItem guiItem = new GuiItem(it, action);
@@ -110,6 +122,13 @@ public class GuiFrame {
         }
         else
             gui.setItem(getSlots(slotRoute), guiItem);
+    }
+
+    private boolean hasItemSource(String route) {
+        return file.getString(route + ".vitem") != null
+                || file.getString(route + ".voxelcore") != null
+                || file.getString(route + ".material") != null
+                || file.getString(route + ".type") != null;
     }
 
     protected List<Integer> getSlots(String r) {

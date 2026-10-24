@@ -11,6 +11,7 @@ import com.artillexstudios.axtrade.hooks.currency.CurrencyHook;
 import com.artillexstudios.axtrade.safety.SafetyManager;
 import com.artillexstudios.axtrade.utils.BlacklistUtils;
 import com.artillexstudios.axtrade.utils.GuiPlaceholderResolver;
+import com.artillexstudios.axtrade.utils.ConfirmationItemPolicy;
 import com.artillexstudios.axtrade.utils.NumberUtils;
 import com.artillexstudios.axtrade.utils.ShulkerUtils;
 import com.artillexstudios.axtrade.utils.TaxUtils;
@@ -66,18 +67,9 @@ public class TradeGui extends GuiFrame {
                 .create();
 
         setGui(gui);
-        // Player heads are static controls, not currency entries. The regular
-        // update() loop only renders confirmation controls and registered
-        // currencies, so explicitly populate both profile head slots before
-        // opening the inventory. buildItem() supplies skin textures and
-        // resolves the viewer/partner placeholders for each side.
-        for (String side : List.of("own", "partner")) {
-            String headRoute = side + ".head";
-            if (GUIS.getSection(headRoute) != null) {
-                super.createItem(headRoute, event -> event.setCancelled(true));
-            }
-        }
-
+        // Profile heads are nested static controls, not currencies. The
+        // generic top-level item loader and the currency loop both skip them.
+        renderProfileHeads();
         gui.setDefaultTopClickAction(this::handleClickTop);
         gui.setDragAction(this::handleDrag);
         gui.setPlayerInventoryAction(this::handleClickBottom);
@@ -88,10 +80,26 @@ public class TradeGui extends GuiFrame {
         update();
         Runnable runnable = () -> {
             gui.open(player.getPlayer());
+            // Some inventory implementations rebuild their contents on open.
+            // Reapply the static heads to the live inventory as well.
+            opened = true;
+            renderProfileHeads();
             updateTitle();
         };
         Scheduler.get().execute(player.getPlayer(), runnable, runnable, 0);
         opened = true;
+    }
+
+    private void renderProfileHeads() {
+        for (String side : List.of("own", "partner")) {
+            String route = side + ".head";
+            if (GUIS.getSection(route) != null) {
+                // GuiFrame's item builder supplies the appropriate own/partner
+                // skin and resolves PlaceholderAPI / VoxelCore text for viewer.
+                // Non-trade slots remain read-only.
+                super.createItem(route, event -> event.setCancelled(true));
+            }
+        }
     }
 
     public void update() {
@@ -104,8 +112,7 @@ public class TradeGui extends GuiFrame {
                 confirmCooldown.addCooldown(player.getPlayer(), 50L);
                 player.cancel();
                 trade.update();
-            }, Map.of(), CONFIG.getBoolean("static-accept-item-amount", true)
-                    ? 1 : player.getConfirmed());
+            }, Map.of(), player.getConfirmed());
         } else {
             renderConfirmation("own.confirm-item", "accept", event -> {
                 event.setCancelled(true);
@@ -123,8 +130,7 @@ public class TradeGui extends GuiFrame {
         if (player.getOtherPlayer().hasConfirmed()) {
             renderConfirmation("partner.confirm-item", "cancel", event ->
                     event.setCancelled(true), partnerNames,
-                    CONFIG.getBoolean("static-accept-item-amount", true)
-                            ? 1 : player.getOtherPlayer().getConfirmed());
+                    player.getOtherPlayer().getConfirmed());
         } else {
             renderConfirmation("partner.confirm-item", "accept", event ->
                     event.setCancelled(true), partnerNames, 1);
@@ -190,24 +196,35 @@ public class TradeGui extends GuiFrame {
     }
 
     /**
-     * The main button and optional -pad may have independent materials/models,
-     * slots and lore, but always share the confirmation handler and active state.
-     * A flat pad definition works in both states; accept/cancel sections allow
-     * different textures for each state. Padding stays at amount 1 by default.
+     * Render exactly the selected YAML state; ItemBuilder supplies all configured
+     * name, lore and metadata. Never generate confirmation wording dynamically.
+     *
+     * A countdown stack is OPT-IN per control. Without that flag, honor an
+     * explicit 'amount' in the selected state (or shared parent definition),
+     * otherwise render one item, for BOTH the own and partner controls.
      */
     private void renderConfirmation(String baseRoute, String state,
                                     GuiAction<InventoryClickEvent> action,
-                                    Map<String, String> replacements, int amount) {
-        super.createItem(baseRoute + ".slot", baseRoute + "." + state,
-                action, replacements, amount);
+                                    Map<String, String> replacements, int secondsRemaining) {
+        String itemRoute = baseRoute + "." + state;
+        int amount = ConfirmationItemPolicy.amount(
+                "cancel".equals(state) && GUIS.getBoolean(baseRoute + ".use-confirm-countdown", false),
+                hasConfiguredAmount(itemRoute, baseRoute), secondsRemaining);
+        super.createItem(baseRoute + ".slot", itemRoute, action, replacements, amount);
 
         String padRoute = baseRoute + "-pad";
         if (GUIS.getSection(padRoute) == null) return;
         String padItem = GUIS.getSection(padRoute + "." + state) == null
                 ? padRoute : padRoute + "." + state;
-        int padAmount = GUIS.getBoolean(padRoute + ".use-confirm-countdown", false)
-                ? amount : 1;
+        int padAmount = ConfirmationItemPolicy.amount(
+                "cancel".equals(state) && GUIS.getBoolean(padRoute + ".use-confirm-countdown", false),
+                hasConfiguredAmount(padItem, padRoute), secondsRemaining);
         super.createItem(padRoute + ".slot", padItem, action, replacements, padAmount);
+    }
+
+    private boolean hasConfiguredAmount(String itemRoute, String baseRoute) {
+        return (GUIS.getSection(itemRoute) != null && GUIS.getSection(itemRoute).get("amount") != null)
+                || (GUIS.getSection(baseRoute) != null && GUIS.getSection(baseRoute).get("amount") != null);
     }
 
     private void handleClickTop(InventoryClickEvent event) {

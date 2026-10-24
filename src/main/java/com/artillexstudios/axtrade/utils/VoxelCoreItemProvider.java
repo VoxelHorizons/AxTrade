@@ -20,6 +20,12 @@ public final class VoxelCoreItemProvider {
 
     private VoxelCoreItemProvider() {}
 
+    /** The vitem option is optional and may be used with a vanilla fallback. */
+    public static boolean isEnabled() {
+        Plugin plugin = Bukkit.getPluginManager().getPlugin("VoxelCore");
+        return plugin != null && plugin.isEnabled();
+    }
+
     @Nullable
     public static ItemStack create(String identifier) {
         Plugin voxelCore = Bukkit.getPluginManager().getPlugin("VoxelCore");

@@ -10,6 +10,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Set;
 
 public class ItemBuilderUtil {
 
@@ -20,34 +22,63 @@ public class ItemBuilderUtil {
 
     @NotNull
     public static ItemBuilder newBuilder(@NotNull Section section, Map<String, String> replacements, @Nullable Player player) {
-        // Resolve every GUI-visible item configuration field before AxAPI creates
-        // the ItemStack. Its built-in name/lore parsing happens while creating the
-        // builder, so post-processing only those two fields misses material,
-        // model, texture, tooltip and all nested config values.
-        Map<String, Object> settings = GuiPlaceholderResolver.resolveItemSection(player, section, replacements);
-        // Accept the underscore spelling that DeluxeMenus users commonly use,
-        // while preserving AxAPI's documented item-model key.
+        return newBuilder(section, null, replacements, player);
+    }
+
+    // Slot/action settings are not item metadata and must never reach ItemBuilder.
+    private static final Set<String> SHARED_CONTROL_KEYS =
+            Set.of("slot", "accept", "cancel", "use-confirm-countdown", "currency");
+
+    /**
+     * Build the configured item; a confirmation state's explicit name/lore
+     * overrides any shared values declared at the parent control.
+     * No default click text or generated lore is applied.
+     */
+    @NotNull
+    public static ItemBuilder newBuilder(@NotNull Section section, @Nullable Section shared,
+                                         Map<String, String> replacements, @Nullable Player player) {
+        // Resolve text and metadata before AxAPI builds the stack. Numeric and
+        // boolean YAML values retain their types throughout the merge.
+        Map<String, Object> settings = new LinkedHashMap<>();
+        if (shared != null) {
+            settings.putAll(GuiPlaceholderResolver.resolveItemSection(player, shared, replacements));
+            for (String key : SHARED_CONTROL_KEYS) settings.remove(key);
+        }
+        settings.putAll(GuiPlaceholderResolver.resolveItemSection(player, section, replacements));
+
+        // Accept underscore spelling for the ItemBuilder's canonical key.
         if (settings.containsKey("item_model") && !settings.containsKey("item-model")) {
             settings.put("item-model", settings.get("item_model"));
         }
 
-        Object id = settings.get("voxelcore");
-        if (id == null && settings.get("material") instanceof String material
-                && material.startsWith("voxel:")) {
-            // Accept the concise material: voxel:ui-blank form as well as
-            // the explicit voxelcore: voxel:ui-blank key.
-            id = material;
+        // vitem is the preferred VoxelCore display source, but the existing
+        // voxelcore: and material: voxel:... forms continue to work.
+        String identifier = VoxelItemReference.select(settings);
+        if (settings.get("material") instanceof String material && material.startsWith("voxel:")) {
             settings.remove("material");
         }
-        if (id instanceof String identifier && !identifier.isBlank()) {
-            ItemStack registered = VoxelCoreItemProvider.create(identifier);
-            if (registered != null) {
-                return customizeRegisteredItem(registered, settings);
-            }
-            // Never create an AIR/null control with a click action. A visible
-            // vanilla fallback can be configured, otherwise use a BARRIER.
-            if (!settings.containsKey("material") && !settings.containsKey("type")) {
-                settings.put("material", "BARRIER");
+        settings.remove("vitem");
+        settings.remove("voxelcore");
+        if (identifier != null) {
+            if (VoxelItemReference.isModelAsset(identifier)) {
+                // A slash denotes a raw resource-pack item-model asset rather
+                // than a VoxelCore registered ContentID (which disallows '/').
+                // The pack must provide the corresponding assets/<ns>/items JSON.
+                if (VoxelCoreItemProvider.isEnabled()) {
+                    settings.putIfAbsent("material", "PAPER");
+                    settings.put("item-model", VoxelItemReference.modelKey(identifier));
+                } else if (!settings.containsKey("material") && !settings.containsKey("type")) {
+                    settings.put("material", "BARRIER");
+                }
+            } else {
+                ItemStack registered = VoxelCoreItemProvider.create(identifier);
+                if (registered != null) {
+                    return customizeRegisteredItem(registered, settings);
+                }
+                // Keep an explicitly configured vanilla fallback material.
+                if (!settings.containsKey("material") && !settings.containsKey("type")) {
+                    settings.put("material", "BARRIER");
+                }
             }
         }
         return ItemBuilder.create(settings);
