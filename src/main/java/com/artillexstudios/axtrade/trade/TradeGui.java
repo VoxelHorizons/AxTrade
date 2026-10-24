@@ -370,7 +370,10 @@ public class TradeGui extends GuiFrame {
                     Double.toString(player.getCurrency(currencyStr)),
                     CONFIG.getInt("currency-input.max-length", 32),
                     CONFIG.getInt("currency-input.width", 240),
-                    amount -> completeCurrencyInput(player.getPlayer(), currencyStr, amount));
+                    amount -> {
+                        Runnable handle = () -> completeCurrencyInput(player.getPlayer(), currencyStr, amount);
+                        Scheduler.get().run(player.getPlayer(), task -> handle.run(), handle);
+                    });
             if (shown) return;
         }
 
