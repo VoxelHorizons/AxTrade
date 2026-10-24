@@ -34,10 +34,20 @@ jobs:
           test -f "${jars[0]}"
           jar tf "${jars[0]}" | grep -Fx plugin.yml
           unzip -p "${jars[0]}" plugin.yml | grep -F "version: '" | grep -F -- "-voxel-core'"
+      - name: Stage release-preview JAR with the public filename
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          jars=(target/AxTrade-*-voxel-core.jar)
+          test "${#jars[@]}" -eq 1
+          name="${jars[0]#target/AxTrade-}"
+          version="${name%-voxel-core.jar}"
+          mkdir -p dist
+          cp "${jars[0]}" "dist/AxTrade-${version}.jar"
       - name: Upload release-preview JAR
         uses: actions/upload-artifact@v4
         with:
-          name: AxTrade-Core-Release-Preview
-          path: target/AxTrade-*-voxel-core.jar
+          name: AxTrade-Release-Preview
+          path: dist/AxTrade-*.jar
           if-no-files-found: error
           retention-days: 14
