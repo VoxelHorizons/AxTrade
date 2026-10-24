@@ -105,9 +105,13 @@ public class GuiFrame {
     }
 
     protected void createItem(@NotNull String slotRoute, String itemRoute, @Nullable GuiAction<InventoryClickEvent> action, Map<String, String> replacements, int amount) {
-        if (file.getString(itemRoute + ".type") == null
-                && file.getString(itemRoute + ".material") == null
-                && file.getString(itemRoute + ".voxelcore") == null) return;
+        // Do not discard a vitem-only GUI item. Confirm controls may also
+        // inherit their render source from the common parent section.
+        boolean hasSource = hasItemSource(itemRoute);
+        if (!hasSource && (itemRoute.endsWith(".accept") || itemRoute.endsWith(".cancel"))) {
+            hasSource = hasItemSource(itemRoute.substring(0, itemRoute.lastIndexOf('.')));
+        }
+        if (!hasSource) return;
         final ItemStack it = buildItem(itemRoute, replacements);
         if (amount > 0) it.setAmount(amount);
         final GuiItem guiItem = new GuiItem(it, action);
@@ -118,6 +122,13 @@ public class GuiFrame {
         }
         else
             gui.setItem(getSlots(slotRoute), guiItem);
+    }
+
+    private boolean hasItemSource(String route) {
+        return file.getString(route + ".vitem") != null
+                || file.getString(route + ".voxelcore") != null
+                || file.getString(route + ".material") != null
+                || file.getString(route + ".type") != null;
     }
 
     protected List<Integer> getSlots(String r) {
