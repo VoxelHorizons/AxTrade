@@ -1,0 +1,41 @@
+name: Voxel Core Release Build Smoke Test
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Validate automatic semantic version bumps
+        run: python3 tests/test-release-version.py
+      - name: Prepare optional-API-free core release
+        run: python3 scripts/prepare-gui-test.py --core-release
+      - name: Build Voxel Core distribution
+        run: mvn -B --no-transfer-progress -DskipTests package
+      - name: Verify labelled plugin distribution
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          jars=(target/AxTrade-*-voxel-core.jar)
+          test "${#jars[@]}" -eq 1
+          test -f "${jars[0]}"
+          jar tf "${jars[0]}" | grep -Fx plugin.yml
+          unzip -p "${jars[0]}" plugin.yml | grep -F "version: '" | grep -F -- "-voxel-core'"
+      - name: Upload release-preview JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: AxTrade-Core-Release-Preview
+          path: target/AxTrade-*-voxel-core.jar
+          if-no-files-found: error
+          retention-days: 14
