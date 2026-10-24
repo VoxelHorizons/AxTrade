@@ -13,9 +13,9 @@ Maven resource filtering.
 | Event | Maven version | Tag | Uploaded asset |
 |---|---|---|---|
 | Existing | 1.28.2 | — | — |
-| Next merge to master | **1.28.3** | `v1.28.3` | `AxTrade-1.28.3-voxel-core.jar` |
-| Following merge | **1.28.4** | `v1.28.4` | `AxTrade-1.28.4-voxel-core.jar` |
-| Explicit minor upgrade via Actions | **1.29.0** | `v1.29.0` | `AxTrade-1.29.0-voxel-core.jar` |
+| Next merge to master | **1.28.3** | `v1.28.3` | `AxTrade-1.28.3.jar` |
+| Following merge | **1.28.4** | `v1.28.4` | `AxTrade-1.28.4.jar` |
+| Explicit minor upgrade via Actions | **1.29.0** | `v1.29.0` | `AxTrade-1.29.0.jar` |
 
 Each subsequent push uses the version from the previously bumped pom.xml;
 other dependency versions are never modified. An **annotated Git tag** and
@@ -33,10 +33,10 @@ After the release workflow has passed:
 1. Open **Releases** on the repository home page (or
    `https://github.com/VoxelHorizons/AxTrade/releases`).
 2. Open the newest `AxTrade vX.Y.Z (Voxel Core)` release.
-3. Download the versioned `-voxel-core.jar` under **Assets**.
+3. Download the versioned `AxTrade-X.Y.Z.jar` under **Assets**.
 
 For a short-lived copy from the same run, download
-`AxTrade-X.Y.Z-Voxel-Core` from **Actions → Versioned AxTrade Release →
+`AxTrade-X.Y.Z` from **Actions → Versioned AxTrade Release →
 Artifacts** (90-day retention). The GitHub Release asset remains available
 until explicitly deleted.
 
@@ -50,7 +50,7 @@ version and imply that every currency hook works.
 
 Instead, the workflow invokes
 `python3 scripts/prepare-gui-test.py --core-release` on the CI workspace,
-which builds a separately labelled `X.Y.Z-voxel-core` plugin. It includes:
+which builds a separately labelled internal `X.Y.Z-voxel-core` plugin (published as `AxTrade-X.Y.Z.jar`). It includes:
 
 - Core player-to-player trading and the configured GUI controls.
 - Vault and experience currency integrations.
@@ -65,7 +65,7 @@ optional API JARs is obtained, implement a separate full-distribution job
 and verify the redistribution licenses before attaching the full JAR.
 
 The existing pull request **GUI Test JAR** workflow remains available
-independently; release builds use a different `-voxel-core` suffix.
+independently; release builds use a different internal `-voxel-core` version marker; the public JAR name has no suffix.
 
 ## Failure / access checks
 
