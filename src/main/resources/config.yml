@@ -34,8 +34,10 @@ prevent-adding-items-when-inventory-full: true
 # if enabled, players will not be able to trade if they have the same ip address
 disallow-same-ip-trade: false
 
-# if true, the accept item will not show the countdown with the item amount
-# this can be useful for textured guis
+# Deprecated legacy option (ignored). Confirmation stack counts now default to
+# a single item, regardless of the countdown. If you want a countdown stack,
+# set use-confirm-countdown: true on each confirm-item or confirm-item-pad in
+# guis.yml. This avoids breaking custom textured GUI layouts.
 static-accept-item-amount: false
 
 number-formatting:
