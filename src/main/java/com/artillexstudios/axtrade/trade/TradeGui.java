@@ -67,6 +67,9 @@ public class TradeGui extends GuiFrame {
                 .create();
 
         setGui(gui);
+        // Profile heads are nested static controls, not currencies. The
+        // generic top-level item loader and the currency loop both skip them.
+        renderProfileHeads();
         gui.setDefaultTopClickAction(this::handleClickTop);
         gui.setDragAction(this::handleDrag);
         gui.setPlayerInventoryAction(this::handleClickBottom);
@@ -77,10 +80,26 @@ public class TradeGui extends GuiFrame {
         update();
         Runnable runnable = () -> {
             gui.open(player.getPlayer());
+            // Some inventory implementations rebuild their contents on open.
+            // Reapply the static heads to the live inventory as well.
+            opened = true;
+            renderProfileHeads();
             updateTitle();
         };
         Scheduler.get().execute(player.getPlayer(), runnable, runnable, 0);
         opened = true;
+    }
+
+    private void renderProfileHeads() {
+        for (String side : List.of("own", "partner")) {
+            String route = side + ".head";
+            if (GUIS.getSection(route) != null) {
+                // GuiFrame's item builder supplies the appropriate own/partner
+                // skin and resolves PlaceholderAPI / VoxelCore text for viewer.
+                // Non-trade slots remain read-only.
+                super.createItem(route, event -> event.setCancelled(true));
+            }
+        }
     }
 
     public void update() {
