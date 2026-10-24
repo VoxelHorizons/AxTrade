@@ -55,6 +55,30 @@ public final class GuiPlaceholderTextRegression {
         expect("Trading %player_name%", GuiPlaceholderText.resolve(
                 "Trading %player_name%", Map.of(), null, null));
 
+        // Both own/partner controls use one item by default, even after
+        // the countdown begins at trade-confirm-seconds: 5.
+        expectInt(1, ConfirmationItemPolicy.amount(false, false, 5));
+        expectInt(1, ConfirmationItemPolicy.amount(false, false, 1));
+        // An explicitly configured amount must not be silently overwritten.
+        expectInt(-1, ConfirmationItemPolicy.amount(false, true, 5));
+        // Only an opted-in control shows remaining seconds on its stack.
+        expectInt(5, ConfirmationItemPolicy.amount(true, false, 5));
+        expectInt(1, ConfirmationItemPolicy.amount(true, false, 0));
+        expectInt(64, ConfirmationItemPolicy.amount(true, false, 100));
+
+        // New vitem is highest priority; older config forms still work.
+        expect("voxel:tractor", VoxelItemReference.select(Map.of(
+                "vitem", "voxel:tractor", "voxelcore", "voxel:old", "material", "GOLD_NUGGET")));
+        expect("voxel:ui-blank", VoxelItemReference.select(Map.of(
+                "voxelcore", "voxel:ui-blank", "material", "BARRIER")));
+        expect("voxel:chair", VoxelItemReference.select(Map.of("material", "voxel:chair")));
+        expect(null, VoxelItemReference.select(Map.of("material", "RED_CONCRETE")));
+        if (!VoxelItemReference.isModelAsset("voxel:ui/blank")
+                || VoxelItemReference.isModelAsset("voxel:tractor")) {
+            throw new AssertionError("Raw item-model asset detection failed");
+        }
+        expect("voxel:ui/blank", VoxelItemReference.modelKey("ui/blank"));
+
         // Fallback must expand precisely the colon-style VoxelCore aliases
         // shown in Paper's AxTrade title screenshot, including negative offsets.
         String legacy = GuiFontPlaceholderFallback.resolve(
@@ -72,6 +96,12 @@ public final class GuiPlaceholderTextRegression {
         expect("%placeholder_without_plugin%",
                 GuiPlaceholderText.resolve("%placeholder_without_plugin%", Map.of(), null, null));
         expect(null, GuiPlaceholderText.resolve(null, trade, null, null));
+    }
+
+    private static void expectInt(int expected, int actual) {
+        if (expected != actual) {
+            throw new AssertionError("Expected stack amount " + expected + " but got " + actual);
+        }
     }
 
     private static void expect(String expected, String actual) {
