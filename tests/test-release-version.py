@@ -3,7 +3,7 @@
 import importlib.util
 from pathlib import Path
 
-module_path = Path(__file__).resolve().parents[2] / "scripts" / "bump-release-version.py"
+module_path = Path(__file__).resolve().parents[1] / "scripts" / "bump-release-version.py"
 spec = importlib.util.spec_from_file_location("version_bump", module_path)
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
