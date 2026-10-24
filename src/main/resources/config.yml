@@ -12,6 +12,15 @@ command-aliases:
   - "axtrade"
   - "trade"
 
+# Currency entry UI: auto selects Paper native dialogs (1.21.7+/supported)
+# and falls back to the existing sign input on older servers or Spigot.
+# dialog also falls back safely if the Paper API is not available.
+# sign always forces the old sign input, even on newer versions.
+currency-input:
+  mode: auto  # auto, dialog, sign
+  max-length: 32
+  width: 240
+
 # the time after clicking the trade confirm button before the trade finishes
 trade-confirm-seconds: 5
 
