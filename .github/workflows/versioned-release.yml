@@ -86,13 +86,13 @@ jobs:
           unzip -p "$jar" plugin.yml | grep -Fx "name: AxTrade"
           unzip -p "$jar" plugin.yml | grep -Fx "version: '${version}-voxel-core'"
           mkdir -p dist
-          cp "$jar" "dist/AxTrade-${version}-voxel-core.jar"
+          cp "$jar" "dist/AxTrade-${version}.jar"
 
       - name: Upload versioned JAR build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AxTrade-${{ steps.version.outputs.version }}-Voxel-Core
-          path: dist/AxTrade-${{ steps.version.outputs.version }}-voxel-core.jar
+          name: AxTrade-${{ steps.version.outputs.version }}
+          path: dist/AxTrade-${{ steps.version.outputs.version }}.jar
           if-no-files-found: error
           retention-days: 90
 
@@ -136,7 +136,7 @@ jobs:
           For a full integration build, the upstream optional API JARs must be
           supplied to the build securely and their redistribution verified.
           EOF
-          gh release create "v${version}" "dist/AxTrade-${version}-voxel-core.jar" \
+          gh release create "v${version}" "dist/AxTrade-${version}.jar" \
             --title "AxTrade v${version} (Voxel Core)" \
             --notes-file "$RUNNER_TEMP/release-notes.md" \
             --verify-tag
