@@ -1,6 +1,7 @@
 package com.artillexstudios.axtrade.trade;
 
 import com.artillexstudios.axapi.config.Config;
+import com.artillexstudios.axapi.libs.boostedyaml.block.implementation.Section;
 import com.artillexstudios.axapi.nms.wrapper.ServerPlayerWrapper;
 import com.artillexstudios.axapi.utils.NumberUtils;
 import com.artillexstudios.axapi.utils.PlayerTextures;
@@ -75,7 +76,14 @@ public class GuiFrame {
         map.put("%partner-status%", own.getOtherPlayer().hasConfirmed()
                 ? LANG.getString("placeholders.ready") : LANG.getString("placeholders.waiting"));
 
-        return ItemBuilderUtil.newBuilder(file.getSection(key), map, player).get();
+        // An accept/cancel state may inherit common item fields (such as
+        // name and lore) from its confirm-item or confirm-item-pad section.
+        // Explicit state fields take precedence; nothing is synthesized.
+        Section shared = null;
+        if (key.endsWith(".accept") || key.endsWith(".cancel")) {
+            shared = file.getSection(key.substring(0, key.lastIndexOf('.')));
+        }
+        return ItemBuilderUtil.newBuilder(file.getSection(key), shared, map, player).get();
     }
 
     protected void createItem(@NotNull String route) {
