@@ -32,6 +32,8 @@ jobs:
       (github.actor != 'github-actions[bot]' &&
        !contains(github.event.head_commit.message, '[skip release]'))
     runs-on: ubuntu-latest
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - name: Checkout current master and release tags
         uses: actions/checkout@v4
@@ -100,15 +102,13 @@ jobs:
           # CI's core-build transformation must NEVER enter master.
           git restore -- pom.xml src/main/java/com/artillexstudios/axtrade/hooks
           cp "$RUNNER_TEMP/axtrade-release-pom.xml" pom.xml
-          git diff --exit-code -- src/main/java/com/artillexstudios/axtrade/hooks
-          if [ "$(git status --porcelain | wc -l)" -ne 1 ]; then
-            echo "Unexpected workspace modifications; refusing release" >&2
-            git status --short
-            exit 1
-          fi
+          # The Python version tests and Maven build leave untracked scratch
+          # files (notably scripts/__pycache__). Those are NOT release inputs.
+          # Stage only pom.xml, then verify no other tracked path changed.
+          git add -- pom.xml
+          python3 scripts/validate-release-stage.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pom.xml
           git commit -m "chore(release): v${{ steps.version.outputs.version }} [skip ci] [skip release]"
           git tag -a "v${{ steps.version.outputs.version }}" -m "AxTrade v${{ steps.version.outputs.version }} Voxel Core"
           # Push commit and matching tag atomically to avoid orphaned releases.
