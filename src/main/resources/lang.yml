@@ -74,6 +74,14 @@ request:
   expired: "&#CCFFEEYour trade request to &#00FFDD%player% &#CCFFEEhas expired!"
   disabled-trading: "&#CCFFEEYou have disabled trades! Use &#00FFDD/trade toggle &#CCFFEEto enable."
 
+# Native Paper dialog strings; supports PlaceholderAPI and VoxelCore glyphs.
+# %currency% is the selected currency provider name.
+currency-editor-dialog:
+  title: "&#00ffddEnter %currency% offer"
+  input-label: "&fAmount"
+  confirm: "&#00ffddApply"
+  cancel: "&#ff7777Cancel"
+
 # this must be 4 lines
 # note: currently the first line must be left empty
 currency-editor-sign:
