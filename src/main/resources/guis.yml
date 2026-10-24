@@ -32,11 +32,21 @@ partner-slots:
 own:
   confirm-item:
     slot: 0
+    # Render one item by default, even during the confirmation countdown.
+    # Set true to show remaining seconds as the item stack amount.
+    use-confirm-countdown: false
+    # Optional shared name/lore here are inherited by both accept/cancel,
+    # unless a particular state defines its own name/lore.
     # you can use these placeholders:
     # %own-name%"
     # %partner-name%
     accept:
       material: "RED_CONCRETE"
+      # To replace this with a VoxelCore item or display-only asset:
+      # vitem: "voxel:ui-blank"   # registered (abstract supported)
+      # vitem: "voxel:ui/blank"  # raw pack item-model asset
+      # material: "RED_CONCRETE" # optional fallback when VoxelCore is absent
+      # 'voxelcore:' and 'material: voxel:...' remain supported.
       # if you want, you can add head textures, like this:
       #material: "PLAYER_HEAD"
       #texture: "%own-head%"
@@ -88,6 +98,8 @@ own:
 partner:
   confirm-item:
     slot: 8
+    # Same one-item default for the partner's mirrored control.
+    use-confirm-countdown: false
     # you can also use these placeholders:
     # %own-name%"
     # %partner-name%
