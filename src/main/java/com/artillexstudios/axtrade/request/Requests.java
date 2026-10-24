@@ -1,11 +1,11 @@
 package com.artillexstudios.axtrade.request;
 
 import com.artillexstudios.axapi.nms.wrapper.ServerPlayerWrapper;
-import com.artillexstudios.axapi.utils.StringUtils;
 import com.artillexstudios.axtrade.api.events.AxTradeRequestEvent;
 import com.artillexstudios.axtrade.safety.SafetyManager;
 import com.artillexstudios.axtrade.trade.Trades;
 import com.artillexstudios.axtrade.utils.SoundUtils;
+import com.artillexstudios.axtrade.utils.TradeMessages;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.Bukkit;
@@ -19,7 +19,7 @@ import java.util.Map;
 
 import static com.artillexstudios.axtrade.AxTrade.CONFIG;
 import static com.artillexstudios.axtrade.AxTrade.LANG;
-import static com.artillexstudios.axtrade.AxTrade.MESSAGEUTILS;
+import static com.artillexstudios.axtrade.utils.TradeMessages.MESSAGES;
 import static com.artillexstudios.axtrade.AxTrade.TOGGLED;
 
 public class Requests {
@@ -27,7 +27,7 @@ public class Requests {
 
     public static void addRequest(@NotNull Player sender, @NotNull Player receiver) {
         if (!SafetyManager.TRADING.get()) {
-            MESSAGEUTILS.sendLang(sender, "safety");
+            MESSAGES.sendLang(sender, "safety");
             return;
         }
 
@@ -35,50 +35,50 @@ public class Requests {
 
         boolean disallowSameIp = CONFIG.getBoolean("disallow-same-ip-trade", false);
         if (disallowSameIp && sender.getAddress() != null && receiver.getAddress() != null && sender.getAddress().getAddress().equals(receiver.getAddress().getAddress())) {
-            MESSAGEUTILS.sendLang(sender, "request.same-ip", replacements);
+            MESSAGES.sendLang(sender, "request.same-ip", replacements);
             return;
         }
 
         var disallowed = CONFIG.getStringList("disallowed-gamemodes");
         if (disallowed.contains(sender.getGameMode().name()) || disallowed.contains(receiver.getGameMode().name())) {
-            MESSAGEUTILS.sendLang(sender, "request.disallowed-gamemode", replacements);
+            MESSAGES.sendLang(sender, "request.disallowed-gamemode", replacements);
             return;
         }
 
         var blacklisted = CONFIG.getStringList("blacklisted-worlds");
         if (blacklisted.contains(sender.getWorld().getName()) || blacklisted.contains(receiver.getWorld().getName())) {
-            MESSAGEUTILS.sendLang(sender, "request.blacklisted-world", replacements);
+            MESSAGES.sendLang(sender, "request.blacklisted-world", replacements);
             return;
         }
 
         if (sender.isDead() || receiver.isDead()) {
-            MESSAGEUTILS.sendLang(sender, "request.not-accepting", replacements);
+            MESSAGES.sendLang(sender, "request.not-accepting", replacements);
             return;
         }
 
         if (TOGGLED.getBoolean("toggled." + receiver.getUniqueId())) {
-            MESSAGEUTILS.sendLang(sender, "request.not-accepting", replacements);
+            MESSAGES.sendLang(sender, "request.not-accepting", replacements);
             return;
         }
 
         if (TOGGLED.getBoolean("toggled." + sender.getUniqueId())) {
-            MESSAGEUTILS.sendLang(sender, "request.disabled-trading", replacements);
+            MESSAGES.sendLang(sender, "request.disabled-trading", replacements);
             return;
         }
 
         if (sender.equals(receiver)) {
-            MESSAGEUTILS.sendLang(sender, "request.cant-trade-self", replacements);
+            MESSAGES.sendLang(sender, "request.cant-trade-self", replacements);
             return;
         }
 
         if (Trades.isTrading(receiver) || Trades.isTrading(sender)) {
-            MESSAGEUTILS.sendLang(sender, "request.already-in-trade", replacements);
+            MESSAGES.sendLang(sender, "request.already-in-trade", replacements);
             return;
         }
 
         int maxDist = CONFIG.getInt("trade-max-distance", 10);
         if (maxDist != -1 && (sender.getWorld() != receiver.getWorld() || maxDist < sender.getLocation().distance(receiver.getLocation()))) {
-            MESSAGEUTILS.sendLang(sender, "request.too-far", replacements);
+            MESSAGES.sendLang(sender, "request.too-far", replacements);
             return;
         }
 
@@ -91,7 +91,7 @@ public class Requests {
                 return;
             }
             if (!request.isActive() || System.currentTimeMillis() - request.getTime() < CONFIG.getInt("trade-request-expire-seconds", 60) * 1_000L) {
-                MESSAGEUTILS.sendLang(sender, "request.already-sent", replacements);
+                MESSAGES.sendLang(sender, "request.already-sent", replacements);
                 return;
             }
         }
@@ -102,19 +102,20 @@ public class Requests {
 
         requests.add(new Request(sender, receiver));
 
-        MESSAGEUTILS.sendLang(sender, "request.sent-sender", replacements);
+        MESSAGES.sendLang(sender, "request.sent-sender", replacements);
 
         Map<String, String> replacements2 = Map.of("%player%", sender.getName());
         if (LANG.getSection("request.sent-receiver") == null) // this is for backwards compatibility
-            MESSAGEUTILS.sendLang(receiver, "request.sent-receiver", replacements2);
+            MESSAGES.sendLang(receiver, "request.sent-receiver", replacements2);
         else {
             ServerPlayerWrapper receiverWrap = ServerPlayerWrapper.wrap(receiver);
-            receiverWrap.message(StringUtils.format(CONFIG.getString("prefix") + LANG.getString("request.sent-receiver.info"), replacements2));
-            receiverWrap.message(StringUtils.format(LANG.getString("request.sent-receiver.accept.message"), replacements2)
-                    .hoverEvent(HoverEvent.showText(StringUtils.format(LANG.getString("request.sent-receiver.accept.hover"), replacements2)))
+            receiverWrap.message(TradeMessages.component(receiver,
+                    CONFIG.getString("prefix", "") + LANG.getString("request.sent-receiver.info"), replacements2));
+            receiverWrap.message(TradeMessages.component(receiver, LANG.getString("request.sent-receiver.accept.message"), replacements2)
+                    .hoverEvent(HoverEvent.showText(TradeMessages.component(receiver, LANG.getString("request.sent-receiver.accept.hover"), replacements2)))
                     .clickEvent(ClickEvent.runCommand("/trade accept " + sender.getName())));
-            receiverWrap.message(StringUtils.format(LANG.getString("request.sent-receiver.deny.message"), replacements2)
-                    .hoverEvent(HoverEvent.showText(StringUtils.format(LANG.getString("request.sent-receiver.deny.hover"), replacements2)))
+            receiverWrap.message(TradeMessages.component(receiver, LANG.getString("request.sent-receiver.deny.message"), replacements2)
+                    .hoverEvent(HoverEvent.showText(TradeMessages.component(receiver, LANG.getString("request.sent-receiver.deny.hover"), replacements2)))
                     .clickEvent(ClickEvent.runCommand("/trade deny " + sender.getName())));
         }
         SoundUtils.playSound(sender, "requested");

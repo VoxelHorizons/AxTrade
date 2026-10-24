@@ -4,7 +4,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import revxrsal.commands.bukkit.exception.SenderNotPlayerException;
 
-import static com.artillexstudios.axtrade.AxTrade.MESSAGEUTILS;
+import static com.artillexstudios.axtrade.utils.TradeMessages.MESSAGES;
 import static com.artillexstudios.axtrade.AxTrade.TOGGLED;
 
 public enum Toggle {
@@ -18,10 +18,10 @@ public enum Toggle {
         boolean toggled = TOGGLED.getBoolean("toggled." + player.getUniqueId(), false);
         if (toggled) {
             TOGGLED.getBackingDocument().remove("toggled." + player.getUniqueId());
-            MESSAGEUTILS.sendLang(player, "toggle.enabled");
+            MESSAGES.sendLang(player, "toggle.enabled");
         } else {
             TOGGLED.set("toggled." + player.getUniqueId(), true);
-            MESSAGEUTILS.sendLang(player, "toggle.disabled");
+            MESSAGES.sendLang(player, "toggle.disabled");
         }
         TOGGLED.save();
     }

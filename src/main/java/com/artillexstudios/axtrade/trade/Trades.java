@@ -10,7 +10,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import static com.artillexstudios.axtrade.AxTrade.MESSAGEUTILS;
+import static com.artillexstudios.axtrade.utils.TradeMessages.MESSAGES;
 
 public class Trades {
     private static final List<Trade> trades = PaperUtils.isFolia() ? Collections.synchronizedList(new ArrayList<>()) : new ArrayList<>();
@@ -18,8 +18,8 @@ public class Trades {
     public static void addTrade(Player p1, Player p2) {
         Trade trade = new Trade(p1, p2);
         trades.add(trade);
-        MESSAGEUTILS.sendLang(p1, "trade.started", Map.of("%player%", p2.getName()));
-        MESSAGEUTILS.sendLang(p2, "trade.started", Map.of("%player%", p1.getName()));
+        MESSAGES.sendLang(p1, "trade.started", Map.of("%player%", p2.getName()));
+        MESSAGES.sendLang(p2, "trade.started", Map.of("%player%", p1.getName()));
         SoundUtils.playSound(p1, "started");
         SoundUtils.playSound(p2, "started");
     }

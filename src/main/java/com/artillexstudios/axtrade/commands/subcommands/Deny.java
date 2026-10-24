@@ -7,7 +7,7 @@ import org.bukkit.entity.Player;
 
 import java.util.Map;
 
-import static com.artillexstudios.axtrade.AxTrade.MESSAGEUTILS;
+import static com.artillexstudios.axtrade.utils.TradeMessages.MESSAGES;
 
 public enum Deny {
     INSTANCE;
@@ -15,13 +15,13 @@ public enum Deny {
     public void execute(Player sender, Player other) {
         Request request = Requests.getRequest(sender, other);
         if (request == null || request.getSender().equals(sender) || !request.isActive()) {
-            MESSAGEUTILS.sendLang(sender, "request.no-request", Map.of("%player%", other.getName()));
+            MESSAGES.sendLang(sender, "request.no-request", Map.of("%player%", other.getName()));
             return;
         }
 
         request.deactivate();
-        MESSAGEUTILS.sendLang(request.getSender(), "request.deny-sender", Map.of("%player%", request.getReceiver().getName()));
-        MESSAGEUTILS.sendLang(request.getReceiver(), "request.deny-receiver", Map.of("%player%", request.getSender().getName()));
+        MESSAGES.sendLang(request.getSender(), "request.deny-sender", Map.of("%player%", request.getReceiver().getName()));
+        MESSAGES.sendLang(request.getReceiver(), "request.deny-receiver", Map.of("%player%", request.getSender().getName()));
         SoundUtils.playSound(request.getSender(), "deny");
         SoundUtils.playSound(request.getReceiver(), "deny");
     }

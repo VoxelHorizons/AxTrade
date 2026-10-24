@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.artillexstudios.axtrade.AxTrade.CONFIG;
-import static com.artillexstudios.axtrade.AxTrade.MESSAGEUTILS;
+import static com.artillexstudios.axtrade.utils.TradeMessages.MESSAGES;
 
 public class TradePlayer {
     private final Player player;
@@ -62,7 +62,7 @@ public class TradePlayer {
             Number minimum = (Number) currencyHook.getSettings().getOrDefault("required", 0);
             if (minimum.doubleValue() <= 0) continue;
             if (getCurrency(currencyHook.getName()) + otherPlayer.getCurrency(currencyHook.getName()) < minimum.doubleValue()) {
-                MESSAGEUTILS.sendLang(player, "request.below-required-amount", Map.of(
+                MESSAGES.sendLang(player, "request.below-required-amount", Map.of(
                         "%amount%", NumberUtils.formatNumber(minimum.doubleValue()),
                         "%currency%", Utils.getFormattedCurrency(currencyHook)
                 ));

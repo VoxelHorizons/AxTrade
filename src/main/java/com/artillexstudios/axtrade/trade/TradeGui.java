@@ -43,7 +43,7 @@ import java.util.Map;
 import static com.artillexstudios.axtrade.AxTrade.CONFIG;
 import static com.artillexstudios.axtrade.AxTrade.GUIS;
 import static com.artillexstudios.axtrade.AxTrade.LANG;
-import static com.artillexstudios.axtrade.AxTrade.MESSAGEUTILS;
+import static com.artillexstudios.axtrade.utils.TradeMessages.MESSAGES;
 
 public class TradeGui extends GuiFrame {
     private static final Cooldown<Player> confirmCooldown = PaperUtils.isFolia() ? Cooldown.createSynchronized() : Cooldown.create();;
@@ -211,7 +211,7 @@ public class TradeGui extends GuiFrame {
 
         if (BlacklistUtils.isBlacklisted(it)) {
             event.setCancelled(true);
-            MESSAGEUTILS.sendLang(player.getPlayer(), "trade.blacklisted-item");
+            MESSAGES.sendLang(player.getPlayer(), "trade.blacklisted-item");
             return;
         }
 
@@ -244,7 +244,7 @@ public class TradeGui extends GuiFrame {
 
         if (BlacklistUtils.isBlacklisted(it)) {
             event.setCancelled(true);
-            MESSAGEUTILS.sendLang(player.getPlayer(), "trade.blacklisted-item");
+            MESSAGES.sendLang(player.getPlayer(), "trade.blacklisted-item");
             return;
         }
 
@@ -305,7 +305,7 @@ public class TradeGui extends GuiFrame {
 
         if (filledSlots >= emptySlots) {
             event.setCancelled(true);
-            MESSAGEUTILS.sendLang(player.getPlayer(), "trade.inventory-full");
+            MESSAGES.sendLang(player.getPlayer(), "trade.inventory-full");
             return true;
         }
         return false;
@@ -314,7 +314,7 @@ public class TradeGui extends GuiFrame {
     private void handleCurrencyClick(String currencyStr, InventoryClickEvent event) {
         event.setCancelled(true);
         if (!SafetyManager.CURRENCY_SELECTOR.get()) {
-            MESSAGEUTILS.sendLang(player.getPlayer(), "safety");
+            MESSAGES.sendLang(player.getPlayer(), "safety");
             return;
         }
         player.cancel();
@@ -333,14 +333,14 @@ public class TradeGui extends GuiFrame {
             String am = result[0];
             TradePlayer.Result addResult = player.setCurrency(currencyStr, am);
             if (addResult == TradePlayer.Result.SUCCESS) {
-                MESSAGEUTILS.sendLang(player1, "currency-editor.success");
+                MESSAGES.sendLang(player1, "currency-editor.success");
             } else {
                 switch (addResult) {
                     case NOT_ENOUGH_CURRENCY -> {
-                        MESSAGEUTILS.sendLang(player1, "currency-editor.not-enough");
+                        MESSAGES.sendLang(player1, "currency-editor.not-enough");
                     }
                     default -> {
-                        MESSAGEUTILS.sendLang(player1, "currency-editor.failed");
+                        MESSAGES.sendLang(player1, "currency-editor.failed");
                     }
                 }
             }
@@ -364,7 +364,7 @@ public class TradeGui extends GuiFrame {
     public void handleShulkerClick(InventoryClickEvent event) {
         event.setCancelled(true);
         if (!SafetyManager.SHULKER_VIEWER.get()) {
-            MESSAGEUTILS.sendLang(player.getPlayer(), "safety");
+            MESSAGES.sendLang(player.getPlayer(), "safety");
             return;
         }
         player.cancel();
